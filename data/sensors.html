@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Sensors</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/jquery.min.js"></script>
+    <script src="assets/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>Sensor Monitoring</h2>
+        </header>
+        
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="sensors.html" class="active">Sensors</a>
+            <a href="actuators.html">Actuators</a>
+            <a href="camera.html">Camera</a>
+            <a href="communication.html">Communication</a>
+            <a href="logs.html">Logs</a>
+            <a href="config.html">Configuration</a>
+        </nav>
+
+        <main>
+            <div class="controls">
+                <button id="startMonitoring" class="btn-primary">Start Monitoring</button>
+                <button id="stopMonitoring" class="btn-secondary">Stop Monitoring</button>
+                <button id="exportData" class="btn-secondary">Export Data</button>
+                <label>
+                    <input type="checkbox" id="autoRefresh">
+                    Auto Refresh
+                </label>
+                <span id="lastUpdate" class="timestamp"></span>
+            </div>
+
+            <div class="sensor-grid">
+                <!-- Environment Sensors -->
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>🌡️ Environment</h3>
+                        <div class="sensor-status" id="dhtStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Temperature:</span>
+                            <span class="value" id="temperature">-- °C</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Humidity:</span>
+                            <span class="value" id="humidity">-- %</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Heat Index:</span>
+                            <span class="value" id="heatIndex">-- °C</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('dht')">Refresh</button>
+                        <button class="btn-small" onclick="calibrateSensor('dht')">Calibrate</button>
+                    </div>
+                </div>
+
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>📊 Pressure & Altitude</h3>
+                        <div class="sensor-status" id="bmpStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Pressure:</span>
+                            <span class="value" id="pressure">-- hPa</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Altitude:</span>
+                            <span class="value" id="altitude">-- m</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Sea Level:</span>
+                            <span class="value" id="seaLevel">-- hPa</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('bmp')">Refresh</button>
+                        <button class="btn-small" onclick="calibrateSensor('bmp')">Calibrate</button>
+                    </div>
+                </div>
+
+                <!-- Light & Motion -->
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>💡 Light Detection</h3>
+                        <div class="sensor-status" id="ldrStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Light Level:</span>
+                            <span class="value" id="lightLevel">-- lux</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Light State:</span>
+                            <span class="value" id="lightState">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">ADC Value:</span>
+                            <span class="value" id="ldrADC">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('ldr')">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>🚨 Motion Detection</h3>
+                        <div class="sensor-status" id="pirStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Motion State:</span>
+                            <span class="value" id="motionState">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Last Trigger:</span>
+                            <span class="value" id="lastMotion">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Trigger Count:</span>
+                            <span class="value" id="motionCount">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('pir')">Refresh</button>
+                        <button class="btn-small" onclick="resetMotionCount()">Reset Count</button>
+                    </div>
+                </div>
+
+                <!-- Soil & Distance -->
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>🌱 Soil Moisture</h3>
+                        <div class="sensor-status" id="soilStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Moisture:</span>
+                            <span class="value" id="soilMoisture">-- %</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Moisture State:</span>
+                            <span class="value" id="moistureState">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">ADC Value:</span>
+                            <span class="value" id="soilADC">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('soil')">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>📏 Distance</h3>
+                        <div class="sensor-status" id="ultrasonicStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Distance:</span>
+                            <span class="value" id="distance">-- cm</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Object Detected:</span>
+                            <span class="value" id="objectDetected">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('ultrasonic')">Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Air Quality & IMU -->
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>💨 Air Quality</h3>
+                        <div class="sensor-status" id="mq135Status">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">PPM:</span>
+                            <span class="value" id="airPPM">-- ppm</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Air Quality:</span>
+                            <span class="value" id="airQuality">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">ADC Value:</span>
+                            <span class="value" id="mq135ADC">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('mq135')">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="sensor-card">
+                    <div class="sensor-header">
+                        <h3>🔄 IMU (MPU6050)</h3>
+                        <div class="sensor-status" id="mpuStatus">Offline</div>
+                    </div>
+                    <div class="sensor-data">
+                        <div class="data-item">
+                            <span class="label">Acceleration:</span>
+                            <span class="value" id="acceleration">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Gyroscope:</span>
+                            <span class="value" id="gyroscope">--</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Orientation:</span>
+                            <span class="value" id="orientation">--</span>
+                        </div>
+                    </div>
+                    <div class="sensor-actions">
+                        <button class="btn-small" onclick="refreshSensor('mpu')">Refresh</button>
+                        <button class="btn-small" onclick="calibrateSensor('mpu')">Calibrate</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <h3>📈 Sensor Data Charts</h3>
+                <div class="chart-controls">
+                    <select id="chartSensor">
+                        <option value="temperature">Temperature</option>
+                        <option value="humidity">Humidity</option>
+                        <option value="pressure">Pressure</option>
+                        <option value="light">Light Level</option>
+                        <option value="distance">Distance</option>
+                        <option value="air">Air Quality</option>
+                    </select>
+                    <select id="chartDuration">
+                        <option value="60">Last 1 Minute</option>
+                        <option value="300">Last 5 Minutes</option>
+                        <option value="1800">Last 30 Minutes</option>
+                        <option value="3600">Last 1 Hour</option>
+                    </select>
+                    <button id="clearChart" class="btn-small">Clear Chart</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="sensorChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Alerts Section -->
+            <div class="alerts-section">
+                <h3>⚠️ Sensor Alerts</h3>
+                <div id="alertsList" class="alerts-list">
+                    <!-- Alerts will be populated here -->
+                </div>
+                <div class="alert-controls">
+                    <button id="clearAlerts" class="btn-danger">Clear All Alerts</button>
+                    <label>
+                        <input type="checkbox" id="enableAlerts">
+                        Enable Alerts
+                    </label>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let monitoringInterval;
+        let chart;
+        let chartData = {
+            labels: [],
+            datasets: [{
+                label: 'Sensor Data',
+                data: [],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        $(document).ready(function() {
+            initChart();
+            loadInitialData();
+            
+            // Event listeners
+            $('#startMonitoring').click(startMonitoring);
+            $('#stopMonitoring').click(stopMonitoring);
+            $('#exportData').click(exportSensorData);
+            $('#autoRefresh').change(toggleAutoRefresh);
+            $('#chartSensor').change(updateChartSensor);
+            $('#chartDuration').change(updateChartDuration);
+            $('#clearChart').click(clearChart);
+            $('#clearAlerts').click(clearAlerts);
+            $('#enableAlerts').change(toggleAlerts);
+            
+            // Start monitoring by default
+            startMonitoring();
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadInitialData() {
+            updateSensors();
+        }
+
+        function startMonitoring() {
+            if (monitoringInterval) return;
+            
+            monitoringInterval = setInterval(updateSensors, 1000);
+            $('#startMonitoring').prop('disabled', true);
+            $('#stopMonitoring').prop('disabled', false);
+            showMessage('Monitoring started', 'success');
+        }
+
+        function stopMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+            }
+            $('#startMonitoring').prop('disabled', false);
+            $('#stopMonitoring').prop('disabled', true);
+            showMessage('Monitoring stopped', 'info');
+        }
+
+        function toggleAutoRefresh() {
+            if ($('#autoRefresh').prop('checked')) {
+                startMonitoring();
+            } else {
+                stopMonitoring();
+            }
+        }
+
+        function updateSensors() {
+            $.get('/api/sensors')
+                .done(function(data) {
+                    updateSensorDisplay(data);
+                    updateLastUpdate();
+                    checkAlerts(data);
+                    updateChartData(data);
+                })
+                .fail(function() {
+                    showMessage('Failed to update sensors', 'error');
+                });
+        }
+
+        function updateSensorDisplay(data) {
+            // Environment sensors
+            if (data.dht) {
+                $('#temperature').text(data.dht.temperature.toFixed(1) + ' °C');
+                $('#humidity').text(data.dht.humidity.toFixed(1) + ' %');
+                $('#heatIndex').text(data.dht.heatIndex.toFixed(1) + ' °C');
+                $('#dhtStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#dhtStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Pressure sensors
+            if (data.bmp) {
+                $('#pressure').text(data.bmp.pressure.toFixed(1) + ' hPa');
+                $('#altitude').text(data.bmp.altitude.toFixed(1) + ' m');
+                $('#seaLevel').text(data.bmp.seaLevelPressure.toFixed(1) + ' hPa');
+                $('#bmpStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#bmpStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Light sensor
+            if (data.ldr) {
+                $('#lightLevel').text(data.ldr.lux.toFixed(0) + ' lux');
+                $('#lightState').text(data.ldr.lightState);
+                $('#ldrADC').text(data.ldr.adcValue);
+                $('#ldrStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#ldrStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Motion sensor
+            if (data.pir) {
+                $('#motionState').text(data.pir.motionDetected ? 'Motion Detected' : 'No Motion');
+                $('#lastMotion').text(data.pir.lastMotion ? new Date(data.pir.lastMotion).toLocaleTimeString() : 'Never');
+                $('#motionCount').text(data.pir.motionCount);
+                $('#pirStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#pirStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Soil moisture
+            if (data.soil) {
+                $('#soilMoisture').text(data.soil.moisturePercentage.toFixed(1) + ' %');
+                $('#moistureState').text(data.soil.moistureState);
+                $('#soilADC').text(data.soil.adcValue);
+                $('#soilStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#soilStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Ultrasonic
+            if (data.ultrasonic) {
+                $('#distance').text(data.ultrasonic.distance.toFixed(1) + ' cm');
+                $('#objectDetected').text(data.ultrasonic.objectDetected ? 'Yes' : 'No');
+                $('#ultrasonicStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#ultrasonicStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // Air quality
+            if (data.mq135) {
+                $('#airPPM').text(data.mq135.ppm.toFixed(0) + ' ppm');
+                $('#airQuality').text(data.mq135.airQuality);
+                $('#mq135ADC').text(data.mq135.adcValue);
+                $('#mq135Status').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#mq135Status').text('Offline').removeClass('online').addClass('offline');
+            }
+
+            // IMU
+            if (data.mpu6050) {
+                $('#acceleration').text(`X: ${data.mpu6050.accelX.toFixed(2)}, Y: ${data.mpu6050.accelY.toFixed(2)}, Z: ${data.mpu6050.accelZ.toFixed(2)}`);
+                $('#gyroscope').text(`X: ${data.mpu6050.gyroX.toFixed(2)}, Y: ${data.mpu6050.gyroY.toFixed(2)}, Z: ${data.mpu6050.gyroZ.toFixed(2)}`);
+                $('#orientation').text(`Pitch: ${data.mpu6050.pitch.toFixed(1)}°, Roll: ${data.mpu6050.roll.toFixed(1)}°, Yaw: ${data.mpu6050.yaw.toFixed(1)}°`);
+                $('#mpuStatus').text('Online').removeClass('offline').addClass('online');
+            } else {
+                $('#mpuStatus').text('Offline').removeClass('online').addClass('offline');
+            }
+        }
+
+        function updateLastUpdate() {
+            $('#lastUpdate').text('Last update: ' + new Date().toLocaleTimeString());
+        }
+
+        function checkAlerts(data) {
+            const alerts = [];
+            
+            // Temperature alerts
+            if (data.dht && (data.dht.temperature > 35 || data.dht.temperature < 0)) {
+                alerts.push({
+                    type: 'warning',
+                    message: `High temperature detected: ${data.dht.temperature.toFixed(1)}°C`
+                });
+            }
+
+            // Humidity alerts
+            if (data.dht && (data.dht.humidity > 90 || data.dht.humidity < 20)) {
+                alerts.push({
+                    type: 'warning',
+                    message: `Extreme humidity detected: ${data.dht.humidity.toFixed(1)}%`
+                });
+            }
+
+            // Air quality alerts
+            if (data.mq135 && data.mq135.ppm > 1000) {
+                alerts.push({
+                    type: 'danger',
+                    message: `Poor air quality detected: ${data.mq135.ppm.toFixed(0)} ppm`
+                });
+            }
+
+            // Motion alerts
+            if (data.pir && data.pir.motionDetected) {
+                alerts.push({
+                    type: 'info',
+                    message: 'Motion detected'
+                });
+            }
+
+            // Display alerts
+            displayAlerts(alerts);
+        }
+
+        function displayAlerts(alerts) {
+            const alertsList = $('#alertsList');
+            alertsList.empty();
+
+            if (alerts.length === 0) {
+                alertsList.html('<div class="no-alerts">No active alerts</div>');
+                return;
+            }
+
+            alerts.forEach(alert => {
+                const alertDiv = $('<div class="alert-item ' + alert.type + '">');
+                alertDiv.html('<strong>' + alert.type.toUpperCase() + ':</strong> ' + alert.message);
+                alertsList.append(alertDiv);
+            });
+        }
+
+        function updateChartData(data) {
+            const sensorType = $('#chartSensor').val();
+            const now = new Date();
+            
+            // Add new data point
+            chartData.labels.push(now.toLocaleTimeString());
+            let value;
+
+            switch (sensorType) {
+                case 'temperature':
+                    value = data.dht ? data.dht.temperature : null;
+                    break;
+                case 'humidity':
+                    value = data.dht ? data.dht.humidity : null;
+                    break;
+                case 'pressure':
+                    value = data.bmp ? data.bmp.pressure : null;
+                    break;
+                case 'light':
+                    value = data.ldr ? data.ldr.lux : null;
+                    break;
+                case 'distance':
+                    value = data.ultrasonic ? data.ultrasonic.distance : null;
+                    break;
+                case 'air':
+                    value = data.mq135 ? data.mq135.ppm : null;
+                    break;
+            }
+
+            if (value !== null) {
+                chartData.datasets[0].data.push(value);
+            } else {
+                chartData.datasets[0].data.push(null);
+            }
+
+            // Limit data points based on duration
+            const maxPoints = parseInt($('#chartDuration').val()) / 1; // 1 second intervals
+            if (chartData.labels.length > maxPoints) {
+                chartData.labels.shift();
+                chartData.datasets[0].data.shift();
+            }
+
+            chart.update();
+        }
+
+        function updateChartSensor() {
+            chartData.datasets[0].data = [];
+            chartData.labels = [];
+            chart.update();
+        }
+
+        function updateChartDuration() {
+            updateChartSensor();
+        }
+
+        function clearChart() {
+            chartData.datasets[0].data = [];
+            chartData.labels = [];
+            chart.update();
+        }
+
+        function clearAlerts() {
+            $('#alertsList').empty().html('<div class="no-alerts">No active alerts</div>');
+        }
+
+        function toggleAlerts() {
+            // Alerts are handled automatically, this is just for UI consistency
+        }
+
+        // Global functions for sensor actions
+        window.refreshSensor = function(sensor) {
+            showMessage('Refreshing ' + sensor + ' sensor...', 'info');
+            updateSensors();
+        };
+
+        window.calibrateSensor = function(sensor) {
+            showMessage('Calibrating ' + sensor + ' sensor...', 'info');
+            $.post('/api/sensors/' + sensor + '/calibrate')
+                .done(function() {
+                    showMessage(sensor + ' sensor calibrated', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to calibrate ' + sensor + ' sensor', 'error');
+                });
+        };
+
+        window.resetMotionCount = function() {
+            $.post('/api/sensors/pir/reset')
+                .done(function() {
+                    showMessage('Motion count reset', 'success');
+                    updateSensors();
+                })
+                .fail(function() {
+                    showMessage('Failed to reset motion count', 'error');
+                });
+        };
+
+        function exportSensorData() {
+            $.get('/api/sensors/log')
+                .done(function(logs) {
+                    const csv = convertToCSV(logs);
+                    const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "sensor_data.csv");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                    showMessage('Sensor data exported', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to export sensor data', 'error');
+                });
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]).join(',');
+            const rows = data.map(row => Object.values(row).join(','));
+            return headers + '\n' + rows.join('\n');
+        }
+
+        function showMessage(message, type) {
+            // This could be implemented with a toast notification system
+            console.log('[' + type.toUpperCase() + '] ' + message);
+        }
+    </script>
+</body>
+</html>

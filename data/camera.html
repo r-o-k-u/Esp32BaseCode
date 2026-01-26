@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Camera</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>Camera Control</h2>
+        </header>
+        
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="sensors.html">Sensors</a>
+            <a href="actuators.html">Actuators</a>
+            <a href="camera.html" class="active">Camera</a>
+            <a href="communication.html">Communication</a>
+            <a href="logs.html">Logs</a>
+            <a href="config.html">Configuration</a>
+        </nav>
+
+        <main>
+            <div class="camera-controls">
+                <div class="control-group">
+                    <button id="startCamera" class="btn-primary">Start Camera</button>
+                    <button id="stopCamera" class="btn-secondary">Stop Camera</button>
+                    <button id="captureImage" class="btn-success">📸 Capture Image</button>
+                    <button id="startStream" class="btn-info">🎥 Start Stream</button>
+                    <button id="stopStream" class="btn-warning">⏹️ Stop Stream</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Flash LED:</label>
+                    <button id="flashOn" class="btn-small">On</button>
+                    <button id="flashOff" class="btn-small">Off</button>
+                    <button id="flashBlink" class="btn-small">Blink</button>
+                </div>
+            </div>
+
+            <div class="camera-settings">
+                <h3>⚙️ Camera Settings</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="resolution">Resolution</label>
+                        <select id="resolution">
+                            <option value="11">1600x1200 (UXGA)</option>
+                            <option value="10">1280x1024 (SXGA)</option>
+                            <option value="9">1024x768 (XGA)</option>
+                            <option value="8">800x600 (SVGA)</option>
+                            <option value="5" selected>320x240 (QVGA)</option>
+                            <option value="4">160x120 (QQVGA)</option>
+                            <option value="3">240x240</option>
+                            <option value="2">176x144 (QCIF)</option>
+                            <option value="0">96x96</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="quality">Image Quality</label>
+                        <input type="range" id="quality" min="1" max="63" value="10">
+                        <span id="qualityValue">10</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="brightness">Brightness</label>
+                        <input type="range" id="brightness" min="-2" max="2" value="0">
+                        <span id="brightnessValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="contrast">Contrast</label>
+                        <input type="range" id="contrast" min="-2" max="2" value="0">
+                        <span id="contrastValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="saturation">Saturation</label>
+                        <input type="range" id="saturation" min="-2" max="2" value="0">
+                        <span id="saturationValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="sharpness">Sharpness</label>
+                        <input type="range" id="sharpness" min="-2" max="2" value="0">
+                        <span id="sharpnessValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="specialEffect">Special Effect</label>
+                        <select id="specialEffect">
+                            <option value="0">No Effect</option>
+                            <option value="1">Negative</option>
+                            <option value="2">Grayscale</option>
+                            <option value="3">Red Tint</option>
+                            <option value="4">Green Tint</option>
+                            <option value="5">Blue Tint</option>
+                            <option value="6">Sepia</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="wbMode">White Balance</label>
+                        <select id="wbMode">
+                            <option value="0">Auto</option>
+                            <option value="1">Sunny</option>
+                            <option value="2">Cloudy</option>
+                            <option value="3">Office</option>
+                            <option value="4">Home</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="aeLevel">AE Level</label>
+                        <input type="range" id="aeLevel" min="-2" max="2" value="0">
+                        <span id="aeLevelValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="aecValue">AEC Value</label>
+                        <input type="range" id="aecValue" min="0" max="1200" value="200">
+                        <span id="aecValueDisplay">200</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="agcGain">AGC Gain</label>
+                        <input type="range" id="agcGain" min="0" max="30" value="0">
+                        <span id="agcGainValue">0</span>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="gainCeiling">Gain Ceiling</label>
+                        <select id="gainCeiling">
+                            <option value="0">2x</option>
+                            <option value="1">4x</option>
+                            <option value="2" selected>8x</option>
+                            <option value="3">16x</option>
+                            <option value="4">32x</option>
+                            <option value="5">64x</option>
+                            <option value="6">128x</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="setting-actions">
+                    <button id="applySettings" class="btn-primary">Apply Settings</button>
+                    <button id="resetSettings" class="btn-warning">Reset to Default</button>
+                    <button id="saveSettings" class="btn-secondary">Save Preset</button>
+                    <button id="loadSettings" class="btn-secondary">Load Preset</button>
+                </div>
+            </div>
+
+            <div class="camera-preview">
+                <h3>📷 Live Preview</h3>
+                <div class="preview-container">
+                    <img id="cameraFeed" src="" alt="Camera Feed" style="display: none;">
+                    <div id="noFeedMessage" class="no-feed">Camera not started</div>
+                    <div id="streamStatus" class="stream-status">Stream: Stopped</div>
+                </div>
+            </div>
+
+            <div class="image-gallery">
+                <h3>🖼️ Captured Images</h3>
+                <div class="gallery-controls">
+                    <button id="refreshGallery" class="btn-small">Refresh Gallery</button>
+                    <button id="clearGallery" class="btn-danger">Clear Gallery</button>
+                    <button id="downloadAll" class="btn-secondary">Download All</button>
+                </div>
+                <div id="imageGrid" class="image-grid">
+                    <!-- Images will be loaded here -->
+                </div>
+            </div>
+
+            <div class="camera-info">
+                <h3>📊 Camera Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">Status:</span>
+                        <span id="cameraStatus" class="value">Offline</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Resolution:</span>
+                        <span id="currentResolution" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Frame Size:</span>
+                        <span id="currentFrameSize" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">FPS:</span>
+                        <span id="currentFPS" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Flash LED:</span>
+                        <span id="flashStatus" class="value">Off</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Storage:</span>
+                        <span id="storageInfo" class="value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="motion-detection">
+                <h3>🚨 Motion Detection</h3>
+                <div class="motion-controls">
+                    <label>
+                        <input type="checkbox" id="enableMotion">
+                        Enable Motion Detection
+                    </label>
+                    <button id="calibrateMotion" class="btn-small">Calibrate</button>
+                    <button id="resetMotion" class="btn-small">Reset</button>
+                </div>
+                <div class="motion-settings">
+                    <div class="setting-item">
+                        <label for="motionThreshold">Threshold</label>
+                        <input type="range" id="motionThreshold" min="1" max="100" value="50">
+                        <span id="motionThresholdValue">50</span>
+                    </div>
+                    <div class="setting-item">
+                        <label for="motionSensitivity">Sensitivity</label>
+                        <input type="range" id="motionSensitivity" min="1" max="10" value="5">
+                        <span id="motionSensitivityValue">5</span>
+                    </div>
+                </div>
+                <div class="motion-status">
+                    <div id="motionIndicator" class="motion-indicator">No Motion</div>
+                    <div id="motionCount" class="motion-count">Detections: 0</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let streamInterval;
+        let motionDetectionEnabled = false;
+
+        $(document).ready(function() {
+            setupEventListeners();
+            loadCameraStatus();
+            loadGallery();
+            
+            // Auto-refresh camera status every 3 seconds
+            setInterval(loadCameraStatus, 3000);
+        });
+
+        function setupEventListeners() {
+            // Camera controls
+            $('#startCamera').click(startCamera);
+            $('#stopCamera').click(stopCamera);
+            $('#captureImage').click(captureImage);
+            $('#startStream').click(startStream);
+            $('#stopStream').click(stopStream);
+            
+            // Flash controls
+            $('#flashOn').click(() => controlFlash('on'));
+            $('#flashOff').click(() => controlFlash('off'));
+            $('#flashBlink').click(() => controlFlash('blink'));
+            
+            // Settings controls
+            $('#applySettings').click(applySettings);
+            $('#resetSettings').click(resetSettings);
+            $('#saveSettings').click(saveSettings);
+            $('#loadSettings').click(loadSettings);
+            
+            // Gallery controls
+            $('#refreshGallery').click(loadGallery);
+            $('#clearGallery').click(clearGallery);
+            $('#downloadAll').click(downloadAllImages);
+            
+            // Motion detection
+            $('#enableMotion').change(toggleMotionDetection);
+            $('#calibrateMotion').click(calibrateMotion);
+            $('#resetMotion').click(resetMotion);
+            
+            // Setting value displays
+            $('#quality').on('input', function() { $('#qualityValue').text($(this).val()); });
+            $('#brightness').on('input', function() { $('#brightnessValue').text($(this).val()); });
+            $('#contrast').on('input', function() { $('#contrastValue').text($(this).val()); });
+            $('#saturation').on('input', function() { $('#saturationValue').text($(this).val()); });
+            $('#sharpness').on('input', function() { $('#sharpnessValue').text($(this).val()); });
+            $('#aeLevel').on('input', function() { $('#aeLevelValue').text($(this).val()); });
+            $('#aecValue').on('input', function() { $('#aecValueDisplay').text($(this).val()); });
+            $('#agcGain').on('input', function() { $('#agcGainValue').text($(this).val()); });
+            $('#motionThreshold').on('input', function() { $('#motionThresholdValue').text($(this).val()); });
+            $('#motionSensitivity').on('input', function() { $('#motionSensitivityValue').text($(this).val()); });
+        }
+
+        function startCamera() {
+            $.post('/api/camera/start')
+                .done(function() {
+                    showMessage('Camera started', 'success');
+                    loadCameraStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to start camera', 'error');
+                });
+        }
+
+        function stopCamera() {
+            $.post('/api/camera/stop')
+                .done(function() {
+                    showMessage('Camera stopped', 'success');
+                    loadCameraStatus();
+                    stopStream();
+                })
+                .fail(function() {
+                    showMessage('Failed to stop camera', 'error');
+                });
+        }
+
+        function captureImage() {
+            $.post('/api/camera/capture')
+                .done(function(response) {
+                    showMessage('Image captured: ' + response.filename, 'success');
+                    loadGallery();
+                })
+                .fail(function() {
+                    showMessage('Failed to capture image', 'error');
+                });
+        }
+
+        function startStream() {
+            if (streamInterval) return;
+            
+            streamInterval = setInterval(function() {
+                $.get('/api/camera/stream')
+                    .done(function(data) {
+                        if (data.frame) {
+                            $('#cameraFeed').attr('src', 'data:image/jpeg;base64,' + data.frame);
+                            $('#cameraFeed').show();
+                            $('#noFeedMessage').hide();
+                            $('#streamStatus').text('Stream: Active');
+                        }
+                    })
+                    .fail(function() {
+                        $('#streamStatus').text('Stream: Error');
+                    });
+            }, 100); // Update every 100ms
+            
+            showMessage('Stream started', 'success');
+        }
+
+        function stopStream() {
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+            $('#cameraFeed').hide();
+            $('#noFeedMessage').show();
+            $('#streamStatus').text('Stream: Stopped');
+            showMessage('Stream stopped', 'info');
+        }
+
+        function controlFlash(action) {
+            $.post('/api/camera/flash/' + action)
+                .done(function() {
+                    showMessage('Flash ' + action, 'success');
+                    loadCameraStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to control flash', 'error');
+                });
+        }
+
+        function applySettings() {
+            const settings = {
+                resolution: parseInt($('#resolution').val()),
+                quality: parseInt($('#quality').val()),
+                brightness: parseInt($('#brightness').val()),
+                contrast: parseInt($('#contrast').val()),
+                saturation: parseInt($('#saturation').val()),
+                sharpness: parseInt($('#sharpness').val()),
+                specialEffect: parseInt($('#specialEffect').val()),
+                wbMode: parseInt($('#wbMode').val()),
+                aeLevel: parseInt($('#aeLevel').val()),
+                aecValue: parseInt($('#aecValue').val()),
+                agcGain: parseInt($('#agcGain').val()),
+                gainCeiling: parseInt($('#gainCeiling').val())
+            };
+
+            $.post('/api/camera/settings', settings)
+                .done(function() {
+                    showMessage('Settings applied', 'success');
+                    loadCameraStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to apply settings', 'error');
+                });
+        }
+
+        function resetSettings() {
+            $('#resolution').val('5');
+            $('#quality').val('10');
+            $('#brightness').val('0');
+            $('#contrast').val('0');
+            $('#saturation').val('0');
+            $('#sharpness').val('0');
+            $('#specialEffect').val('0');
+            $('#wbMode').val('0');
+            $('#aeLevel').val('0');
+            $('#aecValue').val('200');
+            $('#agcGain').val('0');
+            $('#gainCeiling').val('2');
+            
+            // Update display values
+            $('#qualityValue').text('10');
+            $('#brightnessValue').text('0');
+            $('#contrastValue').text('0');
+            $('#saturationValue').text('0');
+            $('#sharpnessValue').text('0');
+            $('#aeLevelValue').text('0');
+            $('#aecValueDisplay').text('200');
+            $('#agcGainValue').text('0');
+            
+            showMessage('Settings reset to default', 'info');
+        }
+
+        function saveSettings() {
+            const settings = {
+                resolution: parseInt($('#resolution').val()),
+                quality: parseInt($('#quality').val()),
+                brightness: parseInt($('#brightness').val()),
+                contrast: parseInt($('#contrast').val()),
+                saturation: parseInt($('#saturation').val()),
+                sharpness: parseInt($('#sharpness').val()),
+                specialEffect: parseInt($('#specialEffect').val()),
+                wbMode: parseInt($('#wbMode').val()),
+                aeLevel: parseInt($('#aeLevel').val()),
+                aecValue: parseInt($('#aecValue').val()),
+                agcGain: parseInt($('#agcGain').val()),
+                gainCeiling: parseInt($('#gainCeiling').val())
+            };
+
+            const presetName = prompt('Enter preset name:', 'camera_preset');
+            if (presetName) {
+                $.post('/api/camera/presets/save', {
+                    name: presetName,
+                    settings: settings
+                })
+                .done(function() {
+                    showMessage('Preset "' + presetName + '" saved', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to save preset', 'error');
+                });
+            }
+        }
+
+        function loadSettings() {
+            const presetName = prompt('Enter preset name to load:', 'camera_preset');
+            if (presetName) {
+                $.get('/api/camera/presets/' + presetName)
+                    .done(function(preset) {
+                        // Apply settings
+                        $('#resolution').val(preset.settings.resolution);
+                        $('#quality').val(preset.settings.quality);
+                        $('#brightness').val(preset.settings.brightness);
+                        $('#contrast').val(preset.settings.contrast);
+                        $('#saturation').val(preset.settings.saturation);
+                        $('#sharpness').val(preset.settings.sharpness);
+                        $('#specialEffect').val(preset.settings.specialEffect);
+                        $('#wbMode').val(preset.settings.wbMode);
+                        $('#aeLevel').val(preset.settings.aeLevel);
+                        $('#aecValue').val(preset.settings.aecValue);
+                        $('#agcGain').val(preset.settings.agcGain);
+                        $('#gainCeiling').val(preset.settings.gainCeiling);
+                        
+                        // Update display values
+                        $('#qualityValue').text(preset.settings.quality);
+                        $('#brightnessValue').text(preset.settings.brightness);
+                        $('#contrastValue').text(preset.settings.contrast);
+                        $('#saturationValue').text(preset.settings.saturation);
+                        $('#sharpnessValue').text(preset.settings.sharpness);
+                        $('#aeLevelValue').text(preset.settings.aeLevel);
+                        $('#aecValueDisplay').text(preset.settings.aecValue);
+                        $('#agcGainValue').text(preset.settings.agcGain);
+                        
+                        showMessage('Preset "' + presetName + '" loaded', 'success');
+                    })
+                    .fail(function() {
+                        showMessage('Failed to load preset', 'error');
+                    });
+            }
+        }
+
+        function loadCameraStatus() {
+            $.get('/api/camera/status')
+                .done(function(data) {
+                    updateCameraStatus(data);
+                })
+                .fail(function() {
+                    showMessage('Failed to load camera status', 'error');
+                });
+        }
+
+        function updateCameraStatus(data) {
+            // Update status
+            const status = data.enabled ? 'Online' : 'Offline';
+            $('#cameraStatus').text(status).removeClass('online offline').addClass(data.enabled ? 'online' : 'offline');
+            
+            // Update resolution info
+            $('#currentResolution').text(data.resolution || '-');
+            $('#currentFrameSize').text(data.frameSize || '-');
+            $('#currentFPS').text(data.fps || '-');
+            
+            // Update flash status
+            const flashStatus = data.flashEnabled ? 'On' : 'Off';
+            $('#flashStatus').text(flashStatus).removeClass('on off').addClass(data.flashEnabled ? 'on' : 'off');
+            
+            // Update storage info
+            $('#storageInfo').text(data.storage || '-');
+        }
+
+        function loadGallery() {
+            $.get('/api/camera/gallery')
+                .done(function(images) {
+                    const grid = $('#imageGrid');
+                    grid.empty();
+                    
+                    if (images.length === 0) {
+                        grid.html('<div class="no-images">No images captured yet</div>');
+                        return;
+                    }
+                    
+                    images.forEach(function(image) {
+                        const imgDiv = $('<div class="image-item">');
+                        const img = $('<img>').attr('src', '/images/' + image.filename).attr('alt', image.filename);
+                        const info = $('<div class="image-info">');
+                        const filename = $('<div class="filename">').text(image.filename);
+                        const date = $('<div class="date">').text(new Date(image.timestamp).toLocaleString());
+                        const size = $('<div class="size">').text((image.size / 1024).toFixed(1) + ' KB');
+                        
+                        const actions = $('<div class="image-actions">');
+                        const viewBtn = $('<button class="btn-small">View</button>').click(function() {
+                            window.open('/images/' + image.filename, '_blank');
+                        });
+                        const downloadBtn = $('<button class="btn-small">Download</button>').click(function() {
+                            const link = document.createElement('a');
+                            link.href = '/images/' + image.filename;
+                            link.download = image.filename;
+                            link.click();
+                        });
+                        const deleteBtn = $('<button class="btn-small btn-danger">Delete</button>').click(function() {
+                            deleteImage(image.filename);
+                        });
+                        
+                        actions.append(viewBtn, downloadBtn, deleteBtn);
+                        info.append(filename, date, size, actions);
+                        imgDiv.append(img, info);
+                        grid.append(imgDiv);
+                    });
+                })
+                .fail(function() {
+                    showMessage('Failed to load gallery', 'error');
+                });
+        }
+
+        function clearGallery() {
+            if (confirm('Are you sure you want to delete all images?')) {
+                $.post('/api/camera/gallery/clear')
+                    .done(function() {
+                        showMessage('Gallery cleared', 'success');
+                        loadGallery();
+                    })
+                    .fail(function() {
+                        showMessage('Failed to clear gallery', 'error');
+                    });
+            }
+        }
+
+        function deleteImage(filename) {
+            $.ajax({
+                url: '/api/camera/gallery/' + filename,
+                method: 'DELETE',
+                success: function() {
+                    showMessage('Image deleted', 'success');
+                    loadGallery();
+                },
+                error: function() {
+                    showMessage('Failed to delete image', 'error');
+                }
+            });
+        }
+
+        function downloadAllImages() {
+            $.get('/api/camera/gallery')
+                .done(function(images) {
+                    if (images.length === 0) {
+                        showMessage('No images to download', 'info');
+                        return;
+                    }
+                    
+                    // Create a zip file or download images individually
+                    images.forEach(function(image) {
+                        const link = document.createElement('a');
+                        link.href = '/images/' + image.filename;
+                        link.download = image.filename;
+                        link.click();
+                    });
+                    
+                    showMessage('Downloading ' + images.length + ' images', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to download images', 'error');
+                });
+        }
+
+        function toggleMotionDetection() {
+            motionDetectionEnabled = $('#enableMotion').prop('checked');
+            $.post('/api/camera/motion/' + (motionDetectionEnabled ? 'enable' : 'disable'))
+                .done(function() {
+                    showMessage('Motion detection ' + (motionDetectionEnabled ? 'enabled' : 'disabled'), 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to toggle motion detection', 'error');
+                    $('#enableMotion').prop('checked', !motionDetectionEnabled);
+                });
+        }
+
+        function calibrateMotion() {
+            $.post('/api/camera/motion/calibrate')
+                .done(function() {
+                    showMessage('Motion detection calibrated', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to calibrate motion detection', 'error');
+                });
+        }
+
+        function resetMotion() {
+            $.post('/api/camera/motion/reset')
+                .done(function() {
+                    showMessage('Motion detection reset', 'success');
+                    $('#motionCount').text('Detections: 0');
+                })
+                .fail(function() {
+                    showMessage('Failed to reset motion detection', 'error');
+                });
+        }
+
+        function showMessage(message, type) {
+            // This could be implemented with a toast notification system
+            console.log('[' + type.toUpperCase() + '] ' + message);
+        }
+    </script>
+</body>
+</html>

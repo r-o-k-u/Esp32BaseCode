@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Logs</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>System Logs</h2>
+        </header>
+        
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="sensors.html">Sensors</a>
+            <a href="actuators.html">Actuators</a>
+            <a href="camera.html">Camera</a>
+            <a href="communication.html">Communication</a>
+            <a href="logs.html" class="active">Logs</a>
+            <a href="config.html">Configuration</a>
+        </nav>
+
+        <main>
+            <div class="log-controls">
+                <div class="control-group">
+                    <button id="startLogging" class="btn-primary">Start Logging</button>
+                    <button id="stopLogging" class="btn-secondary">Stop Logging</button>
+                    <button id="clearLogs" class="btn-warning">Clear Logs</button>
+                    <button id="exportLogs" class="btn-success">Export Logs</button>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Log Level:</label>
+                    <select id="logLevel">
+                        <option value="all">All Levels</option>
+                        <option value="error">Error</option>
+                        <option value="warning">Warning</option>
+                        <option value="info">Info</option>
+                        <option value="debug">Debug</option>
+                    </select>
+                    
+                    <label>Module:</label>
+                    <select id="logModule">
+                        <option value="all">All Modules</option>
+                        <option value="system">System</option>
+                        <option value="sensors">Sensors</option>
+                        <option value="actuators">Actuators</option>
+                        <option value="camera">Camera</option>
+                        <option value="communication">Communication</option>
+                        <option value="webserver">Web Server</option>
+                        <option value="ota">OTA</option>
+                    </select>
+                    
+                    <label>Time Range:</label>
+                    <select id="timeRange">
+                        <option value="1h">Last 1 Hour</option>
+                        <option value="6h">Last 6 Hours</option>
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                
+                <div class="search-group">
+                    <input type="text" id="searchInput" placeholder="Search logs...">
+                    <button id="searchBtn" class="btn-info">Search</button>
+                    <button id="resetSearch" class="btn-small">Reset</button>
+                </div>
+            </div>
+
+            <div class="log-stats">
+                <div class="stat-card">
+                    <h4>Total Logs</h4>
+                    <div class="stat-value" id="totalLogs">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Errors</h4>
+                    <div class="stat-value error" id="errorCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Warnings</h4>
+                    <div class="stat-value warning" id="warningCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Info</h4>
+                    <div class="stat-value info" id="infoCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Debug</h4>
+                    <div class="stat-value debug" id="debugCount">0</div>
+                </div>
+            </div>
+
+            <div class="log-viewer">
+                <h3>📋 Log Entries</h3>
+                <div class="log-actions">
+                    <button id="autoScroll" class="btn-small">Auto-scroll</button>
+                    <button id="pauseScroll" class="btn-small">Pause</button>
+                    <span id="logStatus" class="log-status">Status: Stopped</span>
+                </div>
+                <div id="logContainer" class="log-container">
+                    <!-- Log entries will be loaded here -->
+                </div>
+            </div>
+
+            <div class="log-analysis">
+                <h3>📊 Log Analysis</h3>
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <h4>Error Trends</h4>
+                        <div id="errorChart" class="chart-placeholder">Error trend chart</div>
+                    </div>
+                    <div class="analysis-card">
+                        <h4>Module Activity</h4>
+                        <div id="moduleChart" class="chart-placeholder">Module activity chart</div>
+                    </div>
+                    <div class="analysis-card">
+                        <h4>System Health</h4>
+                        <div class="health-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Uptime:</span>
+                                <span class="metric-value" id="systemUptime">0s</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Memory Usage:</span>
+                                <span class="metric-value" id="memoryUsage">0%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">CPU Usage:</span>
+                                <span class="metric-value" id="cpuUsage">0%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Storage:</span>
+                                <span class="metric-value" id="storageUsage">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analysis-card">
+                        <h4>Recent Events</h4>
+                        <div id="recentEvents" class="recent-events">
+                            <!-- Recent events will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-settings">
+                <h3>⚙️ Log Settings</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="enableLogging">
+                            Enable Logging
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="logToFile">
+                            Log to File
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="logToSerial">
+                            Log to Serial
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="logToWeb">
+                            Log to Web Interface
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>Max Log Entries:</label>
+                        <input type="number" id="maxLogEntries" min="100" max="10000" value="1000">
+                    </div>
+                    <div class="setting-item">
+                        <label>Log Retention (days):</label>
+                        <input type="number" id="logRetention" min="1" max="365" value="7">
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <button id="saveLogSettings" class="btn-primary">Save Settings</button>
+                    <button id="resetLogSettings" class="btn-warning">Reset to Default</button>
+                    <button id="rotateLogs" class="btn-info">Rotate Logs</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let loggingInterval;
+        let isAutoScroll = true;
+        let isPaused = false;
+
+        $(document).ready(function() {
+            loadLogSettings();
+            loadLogStats();
+            loadLogs();
+            setupEventListeners();
+            
+            // Auto-refresh logs every 2 seconds
+            loggingInterval = setInterval(function() {
+                if (!isPaused) {
+                    loadLogs();
+                }
+            }, 2000);
+        });
+
+        function setupEventListeners() {
+            // Control buttons
+            $('#startLogging').click(startLogging);
+            $('#stopLogging').click(stopLogging);
+            $('#clearLogs').click(clearLogs);
+            $('#exportLogs').click(exportLogs);
+            
+            // Filter controls
+            $('#logLevel').change(applyFilters);
+            $('#logModule').change(applyFilters);
+            $('#timeRange').change(applyFilters);
+            
+            // Search controls
+            $('#searchBtn').click(searchLogs);
+            $('#resetSearch').click(resetSearch);
+            $('#searchInput').on('keypress', function(e) {
+                if (e.which === 13) {
+                    searchLogs();
+                }
+            });
+            
+            // Log viewer controls
+            $('#autoScroll').click(function() {
+                isAutoScroll = true;
+                isPaused = false;
+                $('#logStatus').text('Status: Auto-scrolling');
+            });
+            $('#pauseScroll').click(function() {
+                isPaused = !isPaused;
+                $('#logStatus').text(isPaused ? 'Status: Paused' : 'Status: Auto-scrolling');
+            });
+            
+            // Settings controls
+            $('#saveLogSettings').click(saveLogSettings);
+            $('#resetLogSettings').click(resetLogSettings);
+            $('#rotateLogs').click(rotateLogs);
+        }
+
+        function startLogging() {
+            $.post('/api/logs/start')
+                .done(function() {
+                    showMessage('Logging started', 'success');
+                    loadLogStats();
+                })
+                .fail(function() {
+                    showMessage('Failed to start logging', 'error');
+                });
+        }
+
+        function stopLogging() {
+            $.post('/api/logs/stop')
+                .done(function() {
+                    showMessage('Logging stopped', 'success');
+                    loadLogStats();
+                })
+                .fail(function() {
+                    showMessage('Failed to stop logging', 'error');
+                });
+        }
+
+        function clearLogs() {
+            if (confirm('Are you sure you want to clear all logs?')) {
+                $.post('/api/logs/clear')
+                    .done(function() {
+                        showMessage('Logs cleared', 'success');
+                        loadLogs();
+                        loadLogStats();
+                    })
+                    .fail(function() {
+                        showMessage('Failed to clear logs', 'error');
+                    });
+            }
+        }
+
+        function exportLogs() {
+            const level = $('#logLevel').val();
+            const module = $('#logModule').val();
+            const timeRange = $('#timeRange').val();
+            const search = $('#searchInput').val();
+            
+            const params = new URLSearchParams({
+                level: level,
+                module: module,
+                timeRange: timeRange,
+                search: search
+            });
+
+            $.get('/api/logs/export?' + params)
+                .done(function(data) {
+                    const blob = new Blob([data], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'esp32_logs_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.log';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showMessage('Logs exported', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to export logs', 'error');
+                });
+        }
+
+        function applyFilters() {
+            loadLogs();
+        }
+
+        function searchLogs() {
+            loadLogs();
+        }
+
+        function resetSearch() {
+            $('#searchInput').val('');
+            $('#logLevel').val('all');
+            $('#logModule').val('all');
+            $('#timeRange').val('1h');
+            loadLogs();
+        }
+
+        function loadLogs() {
+            const level = $('#logLevel').val();
+            const module = $('#logModule').val();
+            const timeRange = $('#timeRange').val();
+            const search = $('#searchInput').val();
+            
+            const params = new URLSearchParams({
+                level: level,
+                module: module,
+                timeRange: timeRange,
+                search: search
+            });
+
+            $.get('/api/logs?' + params)
+                .done(function(logs) {
+                    displayLogs(logs);
+                    if (isAutoScroll && !isPaused) {
+                        scrollToBottom();
+                    }
+                })
+                .fail(function() {
+                    showMessage('Failed to load logs', 'error');
+                });
+        }
+
+        function displayLogs(logs) {
+            const container = $('#logContainer');
+            container.empty();
+            
+            if (logs.length === 0) {
+                container.html('<div class="no-logs">No logs available</div>');
+                return;
+            }
+            
+            logs.forEach(function(log) {
+                const logEntry = $('<div class="log-entry ' + log.level + '">');
+                const timestamp = $('<div class="log-timestamp">').text(new Date(log.timestamp).toLocaleString());
+                const module = $('<div class="log-module">').text('[' + log.module + ']');
+                const level = $('<div class="log-level ' + log.level + '">').text(log.level.toUpperCase());
+                const message = $('<div class="log-message">').text(log.message);
+                
+                logEntry.append(timestamp, module, level, message);
+                container.append(logEntry);
+            });
+        }
+
+        function scrollToBottom() {
+            const container = $('#logContainer');
+            container.scrollTop(container[0].scrollHeight);
+        }
+
+        function loadLogStats() {
+            $.get('/api/logs/stats')
+                .done(function(stats) {
+                    updateLogStats(stats);
+                })
+                .fail(function() {
+                    showMessage('Failed to load log stats', 'error');
+                });
+        }
+
+        function updateLogStats(stats) {
+            $('#totalLogs').text(stats.total || 0);
+            $('#errorCount').text(stats.error || 0);
+            $('#warningCount').text(stats.warning || 0);
+            $('#infoCount').text(stats.info || 0);
+            $('#debugCount').text(stats.debug || 0);
+        }
+
+        function loadLogSettings() {
+            $.get('/api/logs/settings')
+                .done(function(settings) {
+                    $('#enableLogging').prop('checked', settings.enabled || false);
+                    $('#logToFile').prop('checked', settings.logToFile || false);
+                    $('#logToSerial').prop('checked', settings.logToSerial || false);
+                    $('#logToWeb').prop('checked', settings.logToWeb || false);
+                    $('#maxLogEntries').val(settings.maxEntries || 1000);
+                    $('#logRetention').val(settings.retentionDays || 7);
+                })
+                .fail(function() {
+                    showMessage('Failed to load log settings', 'error');
+                });
+        }
+
+        function saveLogSettings() {
+            const settings = {
+                enabled: $('#enableLogging').prop('checked'),
+                logToFile: $('#logToFile').prop('checked'),
+                logToSerial: $('#logToSerial').prop('checked'),
+                logToWeb: $('#logToWeb').prop('checked'),
+                maxEntries: parseInt($('#maxLogEntries').val()),
+                retentionDays: parseInt($('#logRetention').val())
+            };
+
+            $.post('/api/logs/settings', settings)
+                .done(function() {
+                    showMessage('Log settings saved', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to save log settings', 'error');
+                });
+        }
+
+        function resetLogSettings() {
+            $('#enableLogging').prop('checked', true);
+            $('#logToFile').prop('checked', true);
+            $('#logToSerial').prop('checked', true);
+            $('#logToWeb').prop('checked', true);
+            $('#maxLogEntries').val(1000);
+            $('#logRetention').val(7);
+            
+            saveLogSettings();
+        }
+
+        function rotateLogs() {
+            $.post('/api/logs/rotate')
+                .done(function() {
+                    showMessage('Logs rotated', 'success');
+                    loadLogs();
+                    loadLogStats();
+                })
+                .fail(function() {
+                    showMessage('Failed to rotate logs', 'error');
+                });
+        }
+
+        function loadSystemHealth() {
+            $.get('/api/system/health')
+                .done(function(health) {
+                    updateSystemHealth(health);
+                })
+                .fail(function() {
+                    showMessage('Failed to load system health', 'error');
+                });
+        }
+
+        function updateSystemHealth(health) {
+            $('#systemUptime').text(health.uptime || '0s');
+            $('#memoryUsage').text((health.memoryUsage || 0) + '%');
+            $('#cpuUsage').text((health.cpuUsage || 0) + '%');
+            $('#storageUsage').text((health.storageUsage || 0) + '%');
+        }
+
+        function loadRecentEvents() {
+            $.get('/api/logs/recent')
+                .done(function(events) {
+                    displayRecentEvents(events);
+                })
+                .fail(function() {
+                    showMessage('Failed to load recent events', 'error');
+                });
+        }
+
+        function displayRecentEvents(events) {
+            const container = $('#recentEvents');
+            container.empty();
+            
+            if (events.length === 0) {
+                container.html('<div class="no-events">No recent events</div>');
+                return;
+            }
+            
+            events.forEach(function(event) {
+                const eventDiv = $('<div class="event-item ' + event.level + '">');
+                const time = $('<div class="event-time">').text(new Date(event.timestamp).toLocaleString());
+                const message = $('<div class="event-message">').text(event.message);
+                
+                eventDiv.append(time, message);
+                container.append(eventDiv);
+            });
+        }
+
+        function showMessage(message, type) {
+            // This could be implemented with a toast notification system
+            console.log('[' + type.toUpperCase() + '] ' + message);
+        }
+    </script>
+</body>
+</html>

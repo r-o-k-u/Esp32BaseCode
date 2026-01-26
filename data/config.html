@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Configuration</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>Configuration</h2>
+        </header>
+        
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="sensors.html">Sensors</a>
+            <a href="actuators.html">Actuators</a>
+            <a href="camera.html">Camera</a>
+            <a href="communication.html">Communication</a>
+            <a href="logs.html">Logs</a>
+            <a href="config.html" class="active">Configuration</a>
+        </nav>
+
+        <main>
+            <div class="config-section">
+                <h3>System Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="deviceName">Device Name</label>
+                        <input type="text" id="deviceName" placeholder="ESP32_Device">
+                    </div>
+                    <div class="config-item">
+                        <label for="wifiSSID">WiFi SSID</label>
+                        <input type="text" id="wifiSSID" placeholder="YourWiFiNetwork">
+                    </div>
+                    <div class="config-item">
+                        <label for="wifiPassword">WiFi Password</label>
+                        <input type="password" id="wifiPassword" placeholder="YourWiFiPassword">
+                    </div>
+                    <div class="config-item">
+                        <label for="otaPassword">OTA Password</label>
+                        <input type="password" id="otaPassword" placeholder="OTA_Password">
+                    </div>
+                </div>
+                <button id="saveSystemConfig" class="btn-primary">Save System Configuration</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Sensor Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="sensorInterval">Sensor Reading Interval (ms)</label>
+                        <input type="number" id="sensorInterval" value="1000" min="100" max="60000">
+                    </div>
+                    <div class="config-item">
+                        <label for="dhtPin">DHT Sensor Pin</label>
+                        <input type="number" id="dhtPin" value="4" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="bmpPin">BMP Sensor Pin (SDA)</label>
+                        <input type="number" id="bmpPin" value="21" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="ldrPin">LDR Sensor Pin</label>
+                        <input type="number" id="ldrPin" value="34" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="soilPin">Soil Moisture Pin</label>
+                        <input type="number" id="soilPin" value="35" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="pirPin">PIR Sensor Pin</label>
+                        <input type="number" id="pirPin" value="13" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="mq135Pin">MQ135 Sensor Pin</label>
+                        <input type="number" id="mq135Pin" value="32" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="mpuSDA">MPU6050 SDA Pin</label>
+                        <input type="number" id="mpuSDA" value="21" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="mpuSCL">MPU6050 SCL Pin</label>
+                        <input type="number" id="mpuSCL" value="22" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="ultrasonicTrig">Ultrasonic Trig Pin</label>
+                        <input type="number" id="ultrasonicTrig" value="5" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="ultrasonicEcho">Ultrasonic Echo Pin</label>
+                        <input type="number" id="ultrasonicEcho" value="18" min="0" max="39">
+                    </div>
+                </div>
+                <button id="saveSensorConfig" class="btn-primary">Save Sensor Configuration</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Actuator Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="ledPin">LED Pin</label>
+                        <input type="number" id="ledPin" value="2" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="buzzerPin">Buzzer Pin</label>
+                        <input type="number" id="buzzerPin" value="25" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="motorIN1">Motor IN1 Pin</label>
+                        <input type="number" id="motorIN1" value="14" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="motorIN2">Motor IN2 Pin</label>
+                        <input type="number" id="motorIN2" value="12" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="motorEN">Motor Enable Pin</label>
+                        <input type="number" id="motorEN" value="13" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="rgbRPin">RGB Red Pin</label>
+                        <input type="number" id="rgbRPin" value="26" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="rgbGPin">RGB Green Pin</label>
+                        <input type="number" id="rgbGPin" value="27" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="rgbBPin">RGB Blue Pin</label>
+                        <input type="number" id="rgbBPin" value="14" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="relay1Pin">Relay 1 Pin</label>
+                        <input type="number" id="relay1Pin" value="23" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="relay2Pin">Relay 2 Pin</label>
+                        <input type="number" id="relay2Pin" value="22" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="relay3Pin">Relay 3 Pin</label>
+                        <input type="number" id="relay3Pin" value="21" min="0" max="39">
+                    </div>
+                    <div class="config-item">
+                        <label for="servo1Pin">Servo 1 Pin</label>
+                        <input type="number" id="servo1Pin" value="15" min="0" max="39">
+                    </div>
+                </div>
+                <button id="saveActuatorConfig" class="btn-primary">Save Actuator Configuration</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Camera Configuration (ESP32-CAM)</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="cameraEnabled">Enable Camera</label>
+                        <input type="checkbox" id="cameraEnabled">
+                    </div>
+                    <div class="config-item">
+                        <label for="imageQuality">Image Quality (1-63)</label>
+                        <input type="number" id="imageQuality" value="10" min="1" max="63">
+                    </div>
+                    <div class="config-item">
+                        <label for="frameSize">Frame Size</label>
+                        <select id="frameSize">
+                            <option value="11">1600x1200</option>
+                            <option value="10">1280x1024</option>
+                            <option value="9">1024x768</option>
+                            <option value="8">800x600</option>
+                            <option value="5">QVGA (320x240)</option>
+                            <option value="4">QQVGA (160x120)</option>
+                            <option value="3">240x240</option>
+                            <option value="2">QCIF (176x144)</option>
+                            <option value="0">96x96</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label for="brightness">Brightness (-2 to 2)</label>
+                        <input type="number" id="brightness" value="0" min="-2" max="2">
+                    </div>
+                    <div class="config-item">
+                        <label for="contrast">Contrast (-2 to 2)</label>
+                        <input type="number" id="contrast" value="0" min="-2" max="2">
+                    </div>
+                    <div class="config-item">
+                        <label for="saturation">Saturation (-2 to 2)</label>
+                        <input type="number" id="saturation" value="0" min="-2" max="2">
+                    </div>
+                    <div class="config-item">
+                        <label for="flashPin">Flash LED Pin</label>
+                        <input type="number" id="flashPin" value="4" min="0" max="39">
+                    </div>
+                </div>
+                <button id="saveCameraConfig" class="btn-primary">Save Camera Configuration</button>
+            </div>
+
+            <div class="config-section">
+                <h3>ESP-NOW Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="espnowEnabled">Enable ESP-NOW</label>
+                        <input type="checkbox" id="espnowEnabled">
+                    </div>
+                    <div class="config-item">
+                        <label for="peerMac">Peer MAC Address</label>
+                        <input type="text" id="peerMac" placeholder="XX:XX:XX:XX:XX:XX">
+                    </div>
+                    <div class="config-item">
+                        <label for="channel">WiFi Channel</label>
+                        <input type="number" id="channel" value="1" min="1" max="14">
+                    </div>
+                </div>
+                <button id="saveEspNowConfig" class="btn-primary">Save ESP-NOW Configuration</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Actions</h3>
+                <div class="action-buttons">
+                    <button id="rebootDevice" class="btn-warning">Reboot Device</button>
+                    <button id="factoryReset" class="btn-danger">Factory Reset</button>
+                    <button id="exportConfig" class="btn-secondary">Export Configuration</button>
+                    <button id="importConfig" class="btn-secondary">Import Configuration</button>
+                    <input type="file" id="configFile" style="display: none;">
+                </div>
+            </div>
+
+            <div id="statusMessage" class="status-message"></div>
+        </main>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            loadConfiguration();
+            
+            // Save configurations
+            $('#saveSystemConfig').click(saveSystemConfig);
+            $('#saveSensorConfig').click(saveSensorConfig);
+            $('#saveActuatorConfig').click(saveActuatorConfig);
+            $('#saveCameraConfig').click(saveCameraConfig);
+            $('#saveEspNowConfig').click(saveEspNowConfig);
+            
+            // Actions
+            $('#rebootDevice').click(rebootDevice);
+            $('#factoryReset').click(factoryReset);
+            $('#exportConfig').click(exportConfig);
+            $('#importConfig').click(() => $('#configFile').click());
+            $('#configFile').change(importConfig);
+        });
+
+        function loadConfiguration() {
+            // Load current configuration from device
+            $.get('/api/config')
+                .done(function(data) {
+                    populateForm(data);
+                    showMessage('Configuration loaded successfully', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to load configuration', 'error');
+                });
+        }
+
+        function populateForm(config) {
+            // System config
+            $('#deviceName').val(config.system?.deviceName || '');
+            $('#wifiSSID').val(config.wifi?.ssid || '');
+            $('#wifiPassword').val(config.wifi?.password || '');
+            $('#otaPassword').val(config.ota?.password || '');
+            
+            // Sensor config
+            $('#sensorInterval').val(config.sensors?.interval || 1000);
+            $('#dhtPin').val(config.sensors?.pins?.dht || 4);
+            $('#bmpPin').val(config.sensors?.pins?.bmp || 21);
+            $('#ldrPin').val(config.sensors?.pins?.ldr || 34);
+            $('#soilPin').val(config.sensors?.pins?.soil || 35);
+            $('#pirPin').val(config.sensors?.pins?.pir || 13);
+            $('#mq135Pin').val(config.sensors?.pins?.mq135 || 32);
+            $('#mpuSDA').val(config.sensors?.pins?.mpuSDA || 21);
+            $('#mpuSCL').val(config.sensors?.pins?.mpuSCL || 22);
+            $('#ultrasonicTrig').val(config.sensors?.pins?.ultrasonicTrig || 5);
+            $('#ultrasonicEcho').val(config.sensors?.pins?.ultrasonicEcho || 18);
+            
+            // Actuator config
+            $('#ledPin').val(config.actuators?.pins?.led || 2);
+            $('#buzzerPin').val(config.actuators?.pins?.buzzer || 25);
+            $('#motorIN1').val(config.actuators?.pins?.motorIN1 || 14);
+            $('#motorIN2').val(config.actuators?.pins?.motorIN2 || 12);
+            $('#motorEN').val(config.actuators?.pins?.motorEN || 13);
+            $('#rgbRPin').val(config.actuators?.pins?.rgbR || 26);
+            $('#rgbGPin').val(config.actuators?.pins?.rgbG || 27);
+            $('#rgbBPin').val(config.actuators?.pins?.rgbB || 14);
+            $('#relay1Pin').val(config.actuators?.pins?.relay1 || 23);
+            $('#relay2Pin').val(config.actuators?.pins?.relay2 || 22);
+            $('#relay3Pin').val(config.actuators?.pins?.relay3 || 21);
+            $('#servo1Pin').val(config.actuators?.pins?.servo1 || 15);
+            
+            // Camera config
+            $('#cameraEnabled').prop('checked', config.camera?.enabled || false);
+            $('#imageQuality').val(config.camera?.quality || 10);
+            $('#frameSize').val(config.camera?.frameSize || 5);
+            $('#brightness').val(config.camera?.brightness || 0);
+            $('#contrast').val(config.camera?.contrast || 0);
+            $('#saturation').val(config.camera?.saturation || 0);
+            $('#flashPin').val(config.camera?.flashPin || 4);
+            
+            // ESP-NOW config
+            $('#espnowEnabled').prop('checked', config.espnow?.enabled || false);
+            $('#peerMac').val(config.espnow?.peerMac || '');
+            $('#channel').val(config.espnow?.channel || 1);
+        }
+
+        function saveSystemConfig() {
+            const config = {
+                system: {
+                    deviceName: $('#deviceName').val()
+                },
+                wifi: {
+                    ssid: $('#wifiSSID').val(),
+                    password: $('#wifiPassword').val()
+                },
+                ota: {
+                    password: $('#otaPassword').val()
+                }
+            };
+
+            sendConfig('/api/config/system', config);
+        }
+
+        function saveSensorConfig() {
+            const config = {
+                sensors: {
+                    interval: parseInt($('#sensorInterval').val()),
+                    pins: {
+                        dht: parseInt($('#dhtPin').val()),
+                        bmp: parseInt($('#bmpPin').val()),
+                        ldr: parseInt($('#ldrPin').val()),
+                        soil: parseInt($('#soilPin').val()),
+                        pir: parseInt($('#pirPin').val()),
+                        mq135: parseInt($('#mq135Pin').val()),
+                        mpuSDA: parseInt($('#mpuSDA').val()),
+                        mpuSCL: parseInt($('#mpuSCL').val()),
+                        ultrasonicTrig: parseInt($('#ultrasonicTrig').val()),
+                        ultrasonicEcho: parseInt($('#ultrasonicEcho').val())
+                    }
+                }
+            };
+
+            sendConfig('/api/config/sensors', config);
+        }
+
+        function saveActuatorConfig() {
+            const config = {
+                actuators: {
+                    pins: {
+                        led: parseInt($('#ledPin').val()),
+                        buzzer: parseInt($('#buzzerPin').val()),
+                        motorIN1: parseInt($('#motorIN1').val()),
+                        motorIN2: parseInt($('#motorIN2').val()),
+                        motorEN: parseInt($('#motorEN').val()),
+                        rgbR: parseInt($('#rgbRPin').val()),
+                        rgbG: parseInt($('#rgbGPin').val()),
+                        rgbB: parseInt($('#rgbBPin').val()),
+                        relay1: parseInt($('#relay1Pin').val()),
+                        relay2: parseInt($('#relay2Pin').val()),
+                        relay3: parseInt($('#relay3Pin').val()),
+                        servo1: parseInt($('#servo1Pin').val())
+                    }
+                }
+            };
+
+            sendConfig('/api/config/actuators', config);
+        }
+
+        function saveCameraConfig() {
+            const config = {
+                camera: {
+                    enabled: $('#cameraEnabled').prop('checked'),
+                    quality: parseInt($('#imageQuality').val()),
+                    frameSize: parseInt($('#frameSize').val()),
+                    brightness: parseInt($('#brightness').val()),
+                    contrast: parseInt($('#contrast').val()),
+                    saturation: parseInt($('#saturation').val()),
+                    flashPin: parseInt($('#flashPin').val())
+                }
+            };
+
+            sendConfig('/api/config/camera', config);
+        }
+
+        function saveEspNowConfig() {
+            const config = {
+                espnow: {
+                    enabled: $('#espnowEnabled').prop('checked'),
+                    peerMac: $('#peerMac').val(),
+                    channel: parseInt($('#channel').val())
+                }
+            };
+
+            sendConfig('/api/config/espnow', config);
+        }
+
+        function sendConfig(url, config) {
+            $.ajax({
+                url: url,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(config),
+                success: function() {
+                    showMessage('Configuration saved successfully', 'success');
+                },
+                error: function() {
+                    showMessage('Failed to save configuration', 'error');
+                }
+            });
+        }
+
+        function rebootDevice() {
+            if (confirm('Are you sure you want to reboot the device?')) {
+                $.post('/api/reboot')
+                    .done(function() {
+                        showMessage('Device rebooting...', 'success');
+                    })
+                    .fail(function() {
+                        showMessage('Failed to reboot device', 'error');
+                    });
+            }
+        }
+
+        function factoryReset() {
+            if (confirm('Are you sure you want to perform a factory reset? This will erase all configuration.')) {
+                $.post('/api/factory-reset')
+                    .done(function() {
+                        showMessage('Factory reset completed. Device will reboot.', 'success');
+                        setTimeout(() => location.reload(), 2000);
+                    })
+                    .fail(function() {
+                        showMessage('Failed to perform factory reset', 'error');
+                    });
+            }
+        }
+
+        function exportConfig() {
+            $.get('/api/config')
+                .done(function(config) {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "esp32_config.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                    showMessage('Configuration exported successfully', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to export configuration', 'error');
+                });
+        }
+
+        function importConfig(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    $.ajax({
+                        url: '/api/config/import',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(config),
+                        success: function() {
+                            showMessage('Configuration imported successfully', 'success');
+                            loadConfiguration();
+                        },
+                        error: function() {
+                            showMessage('Failed to import configuration', 'error');
+                        }
+                    });
+                } catch (error) {
+                    showMessage('Invalid configuration file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showMessage(message, type) {
+            const statusDiv = $('#statusMessage');
+            statusDiv.removeClass('success error').addClass(type);
+            statusDiv.text(message);
+            setTimeout(() => statusDiv.text(''), 3000);
+        }
+    </script>
+</body>
+</html>

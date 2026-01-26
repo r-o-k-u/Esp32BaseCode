@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Actuators</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>Actuator Control</h2>
+        </header>
+        
+        <nav>
+            <a href="index.html">Dashboard</a>
+            <a href="sensors.html">Sensors</a>
+            <a href="actuators.html" class="active">Actuators</a>
+            <a href="camera.html">Camera</a>
+            <a href="communication.html">Communication</a>
+            <a href="logs.html">Logs</a>
+            <a href="config.html">Configuration</a>
+        </nav>
+
+        <main>
+            <div class="controls">
+                <button id="emergencyStop" class="btn-danger">🚨 Emergency Stop</button>
+                <button id="allOff" class="btn-warning">All Off</button>
+                <button id="allOn" class="btn-primary">All On</button>
+                <button id="savePreset" class="btn-secondary">Save Preset</button>
+                <button id="loadPreset" class="btn-secondary">Load Preset</button>
+            </div>
+
+            <div class="actuator-grid">
+                <!-- LED Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>💡 LED</h3>
+                        <div class="status-indicator" id="ledStatus">OFF</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="control-group">
+                            <button class="btn-toggle" id="ledToggle">Toggle</button>
+                            <button class="btn-small" onclick="testActuator('led')">Test</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buzzer Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>🔊 Buzzer</h3>
+                        <div class="status-indicator" id="buzzerStatus">OFF</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="control-group">
+                            <button class="btn-toggle" id="buzzerToggle">Toggle</button>
+                            <button class="btn-small" onclick="playBeep()">Beep</button>
+                            <button class="btn-small" onclick="playMelody()">Melody</button>
+                        </div>
+                        <div class="control-group">
+                            <label>Frequency: <span id="freqValue">1000</span> Hz</label>
+                            <input type="range" id="buzzerFreq" min="100" max="5000" value="1000">
+                        </div>
+                        <div class="control-group">
+                            <label>Duration: <span id="durValue">500</span> ms</label>
+                            <input type="range" id="buzzerDur" min="100" max="3000" value="500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RGB LED Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>🌈 RGB LED</h3>
+                        <div class="status-indicator" id="rgbStatus">OFF</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="color-picker">
+                            <input type="color" id="rgbColor" value="#000000">
+                            <button class="btn-small" onclick="setRGBColor()">Set Color</button>
+                        </div>
+                        <div class="rgb-sliders">
+                            <div class="slider-group">
+                                <label>R: <span id="rValue">0</span></label>
+                                <input type="range" id="rgbR" min="0" max="255" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label>G: <span id="gValue">0</span></label>
+                                <input type="range" id="rgbG" min="0" max="255" value="0">
+                            </div>
+                            <div class="slider-group">
+                                <label>B: <span id="bValue">0</span></label>
+                                <input type="range" id="rgbB" min="0" max="255" value="0">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Brightness: <span id="brightValue">255</span></label>
+                            <input type="range" id="rgbBright" min="0" max="255" value="255">
+                        </div>
+                        <div class="control-group">
+                            <button class="btn-small" onclick="rainbowCycle()">Rainbow</button>
+                            <button class="btn-small" onclick="colorWipe()">Color Wipe</button>
+                            <button class="btn-small" onclick="theaterChase()">Theater Chase</button>
+                            <button class="btn-small" onclick="twinkle()">Twinkle</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motor Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>⚡ Motor</h3>
+                        <div class="status-indicator" id="motorStatus">STOPPED</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="control-group">
+                            <button class="btn-small" onclick="motorForward()">Forward</button>
+                            <button class="btn-small" onclick="motorReverse()">Reverse</button>
+                            <button class="btn-small" onclick="motorStop()">Stop</button>
+                            <button class="btn-small" onclick="motorBrake()">Brake</button>
+                        </div>
+                        <div class="control-group">
+                            <label>Speed: <span id="speedValue">0</span>%</label>
+                            <input type="range" id="motorSpeed" min="0" max="100" value="0">
+                        </div>
+                        <div class="control-group">
+                            <button class="btn-small" onclick="accelerate()">Accelerate</button>
+                            <button class="btn-small" onclick="decelerate()">Decelerate</button>
+                            <button class="btn-small" onclick="rampUp()">Ramp Up</button>
+                            <button class="btn-small" onclick="rampDown()">Ramp Down</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relay Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>🔌 Relays</h3>
+                        <div class="status-indicator">CONTROL</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="relay-grid">
+                            <div class="relay-item">
+                                <h4>Relay 1</h4>
+                                <div class="relay-status" id="relay1Status">OFF</div>
+                                <div class="relay-controls">
+                                    <button class="btn-toggle" onclick="toggleRelay(1)">Toggle</button>
+                                    <button class="btn-small" onclick="pulseRelay(1)">Pulse</button>
+                                </div>
+                            </div>
+                            <div class="relay-item">
+                                <h4>Relay 2</h4>
+                                <div class="relay-status" id="relay2Status">OFF</div>
+                                <div class="relay-controls">
+                                    <button class="btn-toggle" onclick="toggleRelay(2)">Toggle</button>
+                                    <button class="btn-small" onclick="pulseRelay(2)">Pulse</button>
+                                </div>
+                            </div>
+                            <div class="relay-item">
+                                <h4>Relay 3</h4>
+                                <div class="relay-status" id="relay3Status">OFF</div>
+                                <div class="relay-controls">
+                                    <button class="btn-toggle" onclick="toggleRelay(3)">Toggle</button>
+                                    <button class="btn-small" onclick="pulseRelay(3)">Pulse</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <button class="btn-small" onclick="allRelaysOn()">All On</button>
+                            <button class="btn-small" onclick="allRelaysOff()">All Off</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Servo Control -->
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <h3>🔄 Servo</h3>
+                        <div class="status-indicator" id="servoStatus">0°</div>
+                    </div>
+                    <div class="actuator-controls">
+                        <div class="control-group">
+                            <label>Angle: <span id="angleValue">0</span>°</label>
+                            <input type="range" id="servoAngle" min="0" max="180" value="0">
+                        </div>
+                        <div class="control-group">
+                            <button class="btn-small" onclick="setServoAngle(0)">0°</button>
+                            <button class="btn-small" onclick="setServoAngle(90)">90°</button>
+                            <button class="btn-small" onclick="setServoAngle(180)">180°</button>
+                            <button class="btn-small" onclick="sweepServo()">Sweep</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scene Control -->
+            <div class="scene-section">
+                <h3>🎭 Scene Control</h3>
+                <div class="scene-controls">
+                    <button class="btn-scene" onclick="executeScene('welcome')">Welcome</button>
+                    <button class="btn-scene" onclick="executeScene('alert')">Alert</button>
+                    <button class="btn-scene" onclick="executeScene('party')">Party</button>
+                    <button class="btn-scene" onclick="executeScene('calm')">Calm</button>
+                    <button class="btn-scene" onclick="executeScene('security')">Security</button>
+                    <button class="btn-scene" onclick="executeScene('custom')">Custom</button>
+                </div>
+                <div class="scene-builder">
+                    <h4>Custom Scene Builder</h4>
+                    <div class="scene-form">
+                        <input type="text" id="sceneName" placeholder="Scene Name">
+                        <textarea id="sceneConfig" placeholder="Scene Configuration (JSON)"></textarea>
+                        <button class="btn-primary" onclick="saveCustomScene()">Save Custom Scene</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status and Logs -->
+            <div class="status-section">
+                <h3>📊 Actuator Status</h3>
+                <div id="actuatorStatus" class="status-display">
+                    <!-- Status will be populated here -->
+                </div>
+                <div class="status-controls">
+                    <button id="refreshStatus" class="btn-small">Refresh Status</button>
+                    <button id="exportStatus" class="btn-small">Export Status</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            loadActuatorStatus();
+            setupEventListeners();
+            
+            // Auto-refresh status every 2 seconds
+            setInterval(loadActuatorStatus, 2000);
+        });
+
+        function setupEventListeners() {
+            // LED control
+            $('#ledToggle').click(function() {
+                toggleActuator('led');
+            });
+
+            // Buzzer controls
+            $('#buzzerToggle').click(function() {
+                toggleActuator('buzzer');
+            });
+
+            $('#buzzerFreq').on('input', function() {
+                $('#freqValue').text($(this).val());
+            });
+
+            $('#buzzerDur').on('input', function() {
+                $('#durValue').text($(this).val());
+            });
+
+            // RGB LED controls
+            $('#rgbColor').on('input', function() {
+                setRGBColor();
+            });
+
+            $('#rgbR').on('input', function() {
+                $('#rValue').text($(this).val());
+                updateRGBSliders();
+            });
+
+            $('#rgbG').on('input', function() {
+                $('#gValue').text($(this).val());
+                updateRGBSliders();
+            });
+
+            $('#rgbB').on('input', function() {
+                $('#bValue').text($(this).val());
+                updateRGBSliders();
+            });
+
+            $('#rgbBright').on('input', function() {
+                $('#brightValue').text($(this).val());
+                setRGBBrightness($(this).val());
+            });
+
+            // Motor controls
+            $('#motorSpeed').on('input', function() {
+                $('#speedValue').text($(this).val());
+                setMotorSpeed($(this).val());
+            });
+
+            // Relay controls
+            $('#relay1Toggle').click(function() { toggleRelay(1); });
+            $('#relay2Toggle').click(function() { toggleRelay(2); });
+            $('#relay3Toggle').click(function() { toggleRelay(3); });
+
+            // Scene controls
+            $('#savePreset').click(savePreset);
+            $('#loadPreset').click(loadPreset);
+        }
+
+        // Global functions for actuator control
+        window.toggleActuator = function(actuator) {
+            $.post('/api/actuators/' + actuator + '/toggle')
+                .done(function() {
+                    showMessage(actuator + ' toggled', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to toggle ' + actuator, 'error');
+                });
+        };
+
+        window.testActuator = function(actuator) {
+            $.post('/api/actuators/' + actuator + '/test')
+                .done(function() {
+                    showMessage(actuator + ' test completed', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to test ' + actuator, 'error');
+                });
+        };
+
+        window.playBeep = function() {
+            const freq = $('#buzzerFreq').val();
+            const dur = $('#buzzerDur').val();
+            $.post('/api/actuators/buzzer/beep', {
+                frequency: freq,
+                duration: dur
+            })
+            .done(function() {
+                showMessage('Beep played', 'success');
+            })
+            .fail(function() {
+                showMessage('Failed to play beep', 'error');
+            });
+        };
+
+        window.playMelody = function() {
+            $.post('/api/actuators/buzzer/melody')
+                .done(function() {
+                    showMessage('Melody played', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to play melody', 'error');
+                });
+        };
+
+        window.setRGBColor = function() {
+            const color = $('#rgbColor').val();
+            $.post('/api/actuators/rgb/color', { color: color })
+                .done(function() {
+                    showMessage('RGB color set', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to set RGB color', 'error');
+                });
+        };
+
+        window.updateRGBSliders = function() {
+            const r = $('#rgbR').val();
+            const g = $('#rgbG').val();
+            const b = $('#rgbB').val();
+            $('#rValue').text(r);
+            $('#gValue').text(g);
+            $('#bValue').text(b);
+            
+            // Update color picker
+            const hexColor = rgbToHex(r, g, b);
+            $('#rgbColor').val(hexColor);
+            
+            // Send to device
+            $.post('/api/actuators/rgb/color', { 
+                red: parseInt(r), 
+                green: parseInt(g), 
+                blue: parseInt(b) 
+            });
+        };
+
+        window.setRGBBrightness = function(brightness) {
+            $.post('/api/actuators/rgb/brightness', { brightness: brightness })
+                .done(function() {
+                    showMessage('RGB brightness set', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to set RGB brightness', 'error');
+                });
+        };
+
+        window.rainbowCycle = function() {
+            $.post('/api/actuators/rgb/rainbow')
+                .done(function() {
+                    showMessage('Rainbow cycle started', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to start rainbow cycle', 'error');
+                });
+        };
+
+        window.colorWipe = function() {
+            $.post('/api/actuators/rgb/colorwipe')
+                .done(function() {
+                    showMessage('Color wipe started', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to start color wipe', 'error');
+                });
+        };
+
+        window.theaterChase = function() {
+            $.post('/api/actuators/rgb/theater')
+                .done(function() {
+                    showMessage('Theater chase started', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to start theater chase', 'error');
+                });
+        };
+
+        window.twinkle = function() {
+            $.post('/api/actuators/rgb/twinkle')
+                .done(function() {
+                    showMessage('Twinkle started', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to start twinkle', 'error');
+                });
+        };
+
+        window.motorForward = function() {
+            $.post('/api/actuators/motor/forward')
+                .done(function() {
+                    showMessage('Motor moving forward', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to move motor forward', 'error');
+                });
+        };
+
+        window.motorReverse = function() {
+            $.post('/api/actuators/motor/reverse')
+                .done(function() {
+                    showMessage('Motor moving reverse', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to move motor reverse', 'error');
+                });
+        };
+
+        window.motorStop = function() {
+            $.post('/api/actuators/motor/stop')
+                .done(function() {
+                    showMessage('Motor stopped', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to stop motor', 'error');
+                });
+        };
+
+        window.motorBrake = function() {
+            $.post('/api/actuators/motor/brake')
+                .done(function() {
+                    showMessage('Motor braked', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to brake motor', 'error');
+                });
+        };
+
+        window.setMotorSpeed = function(speed) {
+            $.post('/api/actuators/motor/speed', { speed: speed })
+                .done(function() {
+                    showMessage('Motor speed set to ' + speed + '%', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to set motor speed', 'error');
+                });
+        };
+
+        window.accelerate = function() {
+            $.post('/api/actuators/motor/accelerate')
+                .done(function() {
+                    showMessage('Motor accelerating', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to accelerate motor', 'error');
+                });
+        };
+
+        window.decelerate = function() {
+            $.post('/api/actuators/motor/decelerate')
+                .done(function() {
+                    showMessage('Motor decelerating', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to decelerate motor', 'error');
+                });
+        };
+
+        window.rampUp = function() {
+            $.post('/api/actuators/motor/rampup')
+                .done(function() {
+                    showMessage('Motor ramping up', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to ramp up motor', 'error');
+                });
+        };
+
+        window.rampDown = function() {
+            $.post('/api/actuators/motor/rampdown')
+                .done(function() {
+                    showMessage('Motor ramping down', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to ramp down motor', 'error');
+                });
+        };
+
+        window.toggleRelay = function(relay) {
+            $.post('/api/actuators/relay/' + relay + '/toggle')
+                .done(function() {
+                    showMessage('Relay ' + relay + ' toggled', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to toggle relay ' + relay, 'error');
+                });
+        };
+
+        window.pulseRelay = function(relay) {
+            $.post('/api/actuators/relay/' + relay + '/pulse')
+                .done(function() {
+                    showMessage('Relay ' + relay + ' pulsed', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to pulse relay ' + relay, 'error');
+                });
+        };
+
+        window.allRelaysOn = function() {
+            $.post('/api/actuators/relay/all/on')
+                .done(function() {
+                    showMessage('All relays turned on', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to turn on all relays', 'error');
+                });
+        };
+
+        window.allRelaysOff = function() {
+            $.post('/api/actuators/relay/all/off')
+                .done(function() {
+                    showMessage('All relays turned off', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to turn off all relays', 'error');
+                });
+        };
+
+        window.setServoAngle = function(angle) {
+            $.post('/api/actuators/servo/angle', { angle: angle })
+                .done(function() {
+                    showMessage('Servo set to ' + angle + '°', 'success');
+                    $('#angleValue').text(angle);
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to set servo angle', 'error');
+                });
+        };
+
+        window.sweepServo = function() {
+            $.post('/api/actuators/servo/sweep')
+                .done(function() {
+                    showMessage('Servo sweeping', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to sweep servo', 'error');
+                });
+        };
+
+        window.executeScene = function(scene) {
+            $.post('/api/actuators/scenes/' + scene)
+                .done(function() {
+                    showMessage('Scene "' + scene + '" executed', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to execute scene "' + scene + '"', 'error');
+                });
+        };
+
+        // Emergency controls
+        $('#emergencyStop').click(function() {
+            if (confirm('Are you sure you want to perform an emergency stop?')) {
+                $.post('/api/actuators/emergency-stop')
+                    .done(function() {
+                        showMessage('Emergency stop activated', 'danger');
+                        loadActuatorStatus();
+                    })
+                    .fail(function() {
+                        showMessage('Failed to activate emergency stop', 'error');
+                    });
+            }
+        });
+
+        $('#allOff').click(function() {
+            $.post('/api/actuators/all/off')
+                .done(function() {
+                    showMessage('All actuators turned off', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to turn off all actuators', 'error');
+                });
+        });
+
+        $('#allOn').click(function() {
+            $.post('/api/actuators/all/on')
+                .done(function() {
+                    showMessage('All actuators turned on', 'success');
+                    loadActuatorStatus();
+                })
+                .fail(function() {
+                    showMessage('Failed to turn on all actuators', 'error');
+                });
+        });
+
+        function loadActuatorStatus() {
+            $.get('/api/actuators/status')
+                .done(function(data) {
+                    updateActuatorDisplay(data);
+                })
+                .fail(function() {
+                    showMessage('Failed to load actuator status', 'error');
+                });
+        }
+
+        function updateActuatorDisplay(data) {
+            // Update LED status
+            const ledStatus = data.led ? 'ON' : 'OFF';
+            $('#ledStatus').text(ledStatus).removeClass('on off').addClass(data.led ? 'on' : 'off');
+
+            // Update Buzzer status
+            const buzzerStatus = data.buzzer ? 'ON' : 'OFF';
+            $('#buzzerStatus').text(buzzerStatus).removeClass('on off').addClass(data.buzzer ? 'on' : 'off');
+
+            // Update RGB LED status
+            const rgbStatus = data.rgb ? 'ON' : 'OFF';
+            $('#rgbStatus').text(rgbStatus).removeClass('on off').addClass(data.rgb ? 'on' : 'off');
+
+            // Update Motor status
+            const motorStatus = data.motor ? 'RUNNING' : 'STOPPED';
+            $('#motorStatus').text(motorStatus).removeClass('running stopped').addClass(data.motor ? 'running' : 'stopped');
+
+            // Update Relay statuses
+            $('#relay1Status').text(data.relays[0] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[0] ? 'on' : 'off');
+            $('#relay2Status').text(data.relays[1] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[1] ? 'on' : 'off');
+            $('#relay3Status').text(data.relays[2] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[2] ? 'on' : 'off');
+
+            // Update Servo status
+            $('#servoStatus').text(data.servo + '°');
+
+            // Update slider values
+            $('#motorSpeed').val(data.motorSpeed || 0);
+            $('#speedValue').text(data.motorSpeed || 0);
+            
+            if (data.rgbColor) {
+                $('#rgbR').val(data.rgbColor.r || 0);
+                $('#rgbG').val(data.rgbColor.g || 0);
+                $('#rgbB').val(data.rgbColor.b || 0);
+                $('#rValue').text(data.rgbColor.r || 0);
+                $('#gValue').text(data.rgbColor.g || 0);
+                $('#bValue').text(data.rgbColor.b || 0);
+            }
+
+            $('#rgbBright').val(data.rgbBrightness || 255);
+            $('#brightValue').text(data.rgbBrightness || 255);
+
+            $('#servoAngle').val(data.servo || 0);
+            $('#angleValue').text(data.servo || 0);
+        }
+
+        function savePreset() {
+            const presetName = prompt('Enter preset name:');
+            if (presetName) {
+                $.post('/api/actuators/presets/save', { name: presetName })
+                    .done(function() {
+                        showMessage('Preset "' + presetName + '" saved', 'success');
+                    })
+                    .fail(function() {
+                        showMessage('Failed to save preset', 'error');
+                    });
+            }
+        }
+
+        function loadPreset() {
+            const presetName = prompt('Enter preset name to load:');
+            if (presetName) {
+                $.post('/api/actuators/presets/load', { name: presetName })
+                    .done(function() {
+                        showMessage('Preset "' + presetName + '" loaded', 'success');
+                        loadActuatorStatus();
+                    })
+                    .fail(function() {
+                        showMessage('Failed to load preset', 'error');
+                    });
+            }
+        }
+
+        function saveCustomScene() {
+            const sceneName = $('#sceneName').val();
+            const sceneConfig = $('#sceneConfig').val();
+            
+            if (!sceneName || !sceneConfig) {
+                showMessage('Please enter scene name and configuration', 'warning');
+                return;
+            }
+
+            try {
+                const config = JSON.parse(sceneConfig);
+                $.post('/api/actuators/scenes/custom', {
+                    name: sceneName,
+                    config: config
+                })
+                .done(function() {
+                    showMessage('Custom scene "' + sceneName + '" saved', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to save custom scene', 'error');
+                });
+            } catch (error) {
+                showMessage('Invalid JSON configuration', 'error');
+            }
+        }
+
+        function exportStatus() {
+            $.get('/api/actuators/status')
+                .done(function(status) {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(status, null, 2));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "actuator_status.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                    showMessage('Actuator status exported', 'success');
+                })
+                .fail(function() {
+                    showMessage('Failed to export actuator status', 'error');
+                });
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (parseInt(r) << 16) + (parseInt(g) << 8) + parseInt(b)).toString(16).slice(1);
+        }
+
+        function showMessage(message, type) {
+            // This could be implemented with a toast notification system
+            console.log('[' + type.toUpperCase() + '] ' + message);
+        }
+    </script>
+</body>
+</html>

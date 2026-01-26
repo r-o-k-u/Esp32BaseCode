@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ESP32 Dual Communication System Control Panel">
+    <title>ESP32 Control Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="container">
+        
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- HEADER SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>🎛️ ESP32 Control Panel</h1>
+                    <p class="subtitle">Dual Communication System v2.0</p>
+                </div>
+                <div class="header-center">
+                    <div class="system-overview">
+                        <div class="overview-item">
+                            <span class="overview-label">WiFi:</span>
+                            <span id="wifi-quick-status" class="overview-value">---</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">ESP-NOW:</span>
+                            <span id="espnow-quick-status" class="overview-value">---</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">Sensors:</span>
+                            <span id="sensors-quick-count" class="overview-value">---</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="status-bar">
+                        <span id="device-name" class="device-name">Loading...</span>
+                        <span class="status-indicator" id="status-indicator">●</span>
+                        <span id="connection-status" class="connection-status">Connecting...</span>
+                        <button id="quick-restart" class="btn-small btn-warning" onclick="restartDevice()" title="Quick Restart">
+                            🔄
+                        </button>
+                    </div>
+                    <div class="header-stats">
+                        <span id="uptime-display">Uptime: --</span>
+                        <span id="heap-display">Heap: --</span>
+                        <span id="cpu-display">CPU: --</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- NAVIGATION TABS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <nav class="tab-navigation">
+            <button class="tab-btn active" data-tab="dashboard">
+                <span class="tab-icon">📊</span>
+                Dashboard
+            </button>
+            <button class="tab-btn" data-tab="sensors">
+                <span class="tab-icon">🌡️</span>
+                Sensors
+            </button>
+            <button class="tab-btn" data-tab="actuators">
+                <span class="tab-icon">⚙️</span>
+                Actuators
+            </button>
+            <button class="tab-btn" data-tab="communication">
+                <span class="tab-icon">📡</span>
+                Communication
+            </button>
+            <button class="tab-btn" data-tab="camera" id="camera-tab" style="display:none;">
+                <span class="tab-icon">📷</span>
+                Camera
+            </button>
+            <button class="tab-btn" data-tab="logs">
+                <span class="tab-icon">📝</span>
+                Logs
+            </button>
+            <button class="tab-btn" data-tab="config">
+                <span class="tab-icon">🔧</span>
+                Config
+            </button>
+        </nav>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- DASHBOARD NOTIFICATIONS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="dashboard-notifications" class="notifications-bar">
+            <div class="notification-item" id="notification-wifi" style="display:none;">
+                <span class="notification-icon">📶</span>
+                <span class="notification-text">WiFi connection lost</span>
+                <button class="notification-close" onclick="dismissNotification('wifi')">×</button>
+            </div>
+            <div class="notification-item warning" id="notification-high-temp" style="display:none;">
+                <span class="notification-icon">🌡️</span>
+                <span class="notification-text">High temperature detected</span>
+                <button class="notification-close" onclick="dismissNotification('high-temp')">×</button>
+            </div>
+            <div class="notification-item success" id="notification-update" style="display:none;">
+                <span class="notification-icon">🔄</span>
+                <span class="notification-text">System update completed</span>
+                <button class="notification-close" onclick="dismissNotification('update')">×</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: DASHBOARD -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="dashboard" class="tab-content active">
+            <!-- Quick Actions Bar -->
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="emergencyStop()" title="Emergency Stop All Actuators">
+                    🚨 Emergency Stop
+                </button>
+                <button class="quick-action-btn" onclick="triggerAlert()" title="Trigger Alert">
+                    ⚠️ Alert
+                </button>
+                <button class="quick-action-btn" onclick="refreshAllData()" title="Refresh All Data">
+                    🔄 Refresh All
+                </button>
+                <button class="quick-action-btn" onclick="exportCurrentData()" title="Export Current Data">
+                    📊 Export Data
+                </button>
+            </div>
+
+            <div class="grid grid-4">
+
+                <!-- System Information Card -->
+                <div class="card card-featured">
+                    <div class="card-header">
+                        <h2>System Information</h2>
+                        <span class="card-icon">💻</span>
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="refreshSystemInfo()" title="Refresh">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Device:</span>
+                                <span id="info-device" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Firmware:</span>
+                                <span id="info-version" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime:</span>
+                                <span id="info-uptime" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Free Heap:</span>
+                                <span id="info-heap" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">CPU Usage:</span>
+                                <span id="info-cpu" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">WiFi RSSI:</span>
+                                <span id="info-rssi" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">IP Address:</span>
+                                <span id="info-ip" class="info-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Sensor Readings Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Sensor Readings</h2>
+                        <span class="card-icon">🌡️</span>
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="refreshSensors()" title="Refresh Sensors">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="quick-sensors" class="sensor-grid">
+                            <div class="loading-spinner">Loading sensor data...</div>
+                        </div>
+                        <div class="sensor-summary">
+                            <small>Last updated: <span id="sensor-last-update">-</span></small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESP-NOW Status Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>ESP-NOW Communication</h2>
+                        <span class="card-icon">📡</span>
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="refreshPeers()" title="Refresh Peers">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Messages Sent:</span>
+                                <span id="espnow-sent" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Messages Received:</span>
+                                <span id="espnow-received" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Failed:</span>
+                                <span id="espnow-failed" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Active Peers:</span>
+                                <span id="espnow-peers" class="info-value">-</span>
+                            </div>
+                        </div>
+                        <div class="comm-status">
+                            <div class="status-indicator">
+                                <span class="status-dot" id="espnow-status-dot">●</span>
+                                <span class="status-text" id="espnow-status-text">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Controls Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Quick Controls</h2>
+                        <span class="card-icon">🎮</span>
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="resetAllActuators()" title="Reset All">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="control-grid">
+                            <button class="btn btn-primary" onclick="toggleActuator('led', 1)">
+                                💡 LED ON
+                            </button>
+                            <button class="btn btn-secondary" onclick="toggleActuator('led', 0)">
+                                💡 LED OFF
+                            </button>
+                            <button class="btn btn-success" onclick="toggleRelay(1, true)">
+                                🔌 Relay 1 ON
+                            </button>
+                            <button class="btn btn-danger" onclick="toggleRelay(1, false)">
+                                🔌 Relay 1 OFF
+                            </button>
+                            <button class="btn btn-info" onclick="triggerBuzzer(500)">
+                                🔊 Buzzer Beep
+                            </button>
+                            <button class="btn btn-warning" onclick="setRGBColor(255,0,0)">
+                                🔴 RGB Red
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>System Health</h2>
+                        <span class="card-icon">💚</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="health-indicators">
+                            <div class="health-item">
+                                <span class="health-label">WiFi:</span>
+                                <span id="health-wifi" class="health-status">●</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">ESP-NOW:</span>
+                                <span id="health-espnow" class="health-status">●</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">Sensors:</span>
+                                <span id="health-sensors" class="health-status">●</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">Storage:</span>
+                                <span id="health-storage" class="health-status">●</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">Memory:</span>
+                                <span id="health-memory" class="health-status">●</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">CPU:</span>
+                                <span id="health-cpu" class="health-status">●</span>
+                            </div>
+                        </div>
+                        <div class="health-summary">
+                            <small>Overall: <span id="health-overall">Good</span></small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Metrics Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Performance Metrics</h2>
+                        <span class="card-icon">📈</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">Loop Time:</span>
+                                <span id="metric-loop-time" class="metric-value">-- μs</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Free Stack:</span>
+                                <span id="metric-free-stack" class="metric-value">-- bytes</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Uptime:</span>
+                                <span id="metric-uptime" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Restarts:</span>
+                                <span id="metric-restarts" class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Recent Activity</h2>
+                        <span class="card-icon">📋</span>
+                        <div class="card-actions">
+                            <button class="btn-icon" onclick="clearActivityLog()" title="Clear Log">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="activity-log" class="activity-log">
+                            <div class="activity-item">
+                                <span class="activity-time">Now</span>
+                                <span class="activity-text">System initialized</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Environmental Summary Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Environmental Summary</h2>
+                        <span class="card-icon">🌍</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="env-summary">
+                            <div class="env-item">
+                                <span class="env-icon">🌡️</span>
+                                <div class="env-data">
+                                    <span class="env-value" id="env-temp">--°C</span>
+                                    <span class="env-label">Temperature</span>
+                                </div>
+                            </div>
+                            <div class="env-item">
+                                <span class="env-icon">💧</span>
+                                <div class="env-data">
+                                    <span class="env-value" id="env-humidity">--%</span>
+                                    <span class="env-label">Humidity</span>
+                                </div>
+                            </div>
+                            <div class="env-item">
+                                <span class="env-icon">🏔️</span>
+                                <div class="env-data">
+                                    <span class="env-value" id="env-pressure">-- hPa</span>
+                                    <span class="env-label">Pressure</span>
+                                </div>
+                            </div>
+                            <div class="env-item">
+                                <span class="env-icon">💨</span>
+                                <div class="env-data">
+                                    <span class="env-value" id="env-air-quality">--</span>
+                                    <span class="env-label">Air Quality</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="env-comfort">
+                            <span class="comfort-label">Comfort Level:</span>
+                            <span id="comfort-level" class="comfort-value">---</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: SENSORS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="sensors" class="tab-content">
+            <div class="grid grid-2">
+                
+                <!-- All Sensors Display -->
+                <div class="card card-large">
+                    <div class="card-header">
+                        <h2>All Sensor Readings</h2>
+                        <button class="btn btn-small" onclick="refreshSensors()">🔄 Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="all-sensors" class="sensor-list">
+                            <div class="loading-spinner">Loading sensors...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Temperature Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Temperature History</h2>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="tempChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Humidity Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Humidity History</h2>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="humidityChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: ACTUATORS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="actuators" class="tab-content">
+            <div class="grid grid-3">
+                
+                <!-- LED Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>LED Control</h2>
+                        <span class="card-icon">💡</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="actuator-controls">
+                            <button class="btn btn-large btn-primary" onclick="toggleActuator('led', 1)">
+                                Turn ON
+                            </button>
+                            <button class="btn btn-large btn-secondary" onclick="toggleActuator('led', 0)">
+                                Turn OFF
+                            </button>
+                            <div class="brightness-control">
+                                <label>Brightness: <span id="led-brightness-value">100</span>%</label>
+                                <input type="range" min="0" max="255" value="255" 
+                                       id="led-brightness" oninput="updateLEDBrightness(this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relay Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Relay Controls</h2>
+                        <span class="card-icon">🔌</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="relay-controls">
+                            <div class="relay-item">
+                                <span class="relay-label">Relay 1</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="relay1-switch" 
+                                           onchange="toggleRelay(1, this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="relay-item">
+                                <span class="relay-label">Relay 2</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="relay2-switch" 
+                                           onchange="toggleRelay(2, this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="relay-item">
+                                <span class="relay-label">Relay 3</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="relay3-switch" 
+                                           onchange="toggleRelay(3, this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Servo Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Servo Control</h2>
+                        <span class="card-icon">🔄</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="servo-controls">
+                            <div class="servo-item">
+                                <label>Servo 1: <span id="servo1-value">90</span>°</label>
+                                <input type="range" min="0" max="180" value="90" 
+                                       id="servo1-slider" oninput="updateServo(1, this.value)">
+                            </div>
+                            <div class="servo-item">
+                                <label>Servo 2: <span id="servo2-value">90</span>°</label>
+                                <input type="range" min="0" max="180" value="90" 
+                                       id="servo2-slider" oninput="updateServo(2, this.value)">
+                            </div>
+                            <div class="servo-presets">
+                                <button class="btn btn-small" onclick="setServo(1, 0)">0°</button>
+                                <button class="btn btn-small" onclick="setServo(1, 90)">90°</button>
+                                <button class="btn btn-small" onclick="setServo(1, 180)">180°</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motor Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Motor Control</h2>
+                        <span class="card-icon">⚡</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="motor-controls">
+                            <div class="motor-buttons">
+                                <button class="btn btn-primary" onclick="motorForward()">▲ Forward</button>
+                                <div class="motor-row">
+                                    <button class="btn btn-secondary" onclick="motorLeft()">◄ Left</button>
+                                    <button class="btn btn-danger" onclick="motorStop()">■ Stop</button>
+                                    <button class="btn btn-secondary" onclick="motorRight()">► Right</button>
+                                </div>
+                                <button class="btn btn-primary" onclick="motorBackward()">▼ Backward</button>
+                            </div>
+                            <div class="motor-speed">
+                                <label>Speed: <span id="motor-speed-value">50</span>%</label>
+                                <input type="range" min="0" max="100" value="50" 
+                                       id="motor-speed" oninput="updateMotorSpeed(this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buzzer Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Buzzer Control</h2>
+                        <span class="card-icon">🔊</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="buzzer-controls">
+                            <button class="btn btn-block" onclick="triggerBuzzer(100)">
+                                Short Beep (100ms)
+                            </button>
+                            <button class="btn btn-block" onclick="triggerBuzzer(500)">
+                                Medium Beep (500ms)
+                            </button>
+                            <button class="btn btn-block" onclick="triggerBuzzer(1000)">
+                                Long Beep (1s)
+                            </button>
+                            <button class="btn btn-block btn-warning" onclick="triggerBuzzer(2000)">
+                                Alarm (2s)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RGB LED Control -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>RGB LED Control</h2>
+                        <span class="card-icon">🌈</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="rgb-controls">
+                            <div class="color-picker">
+                                <label>Color:</label>
+                                <input type="color" id="rgb-color" value="#ff0000" 
+                                       onchange="updateRGBColor(this.value)">
+                            </div>
+                            <div class="rgb-presets">
+                                <button class="btn btn-small" style="background:#ff0000;" onclick="setRGBColor(255,0,0)">Red</button>
+                                <button class="btn btn-small" style="background:#00ff00;" onclick="setRGBColor(0,255,0)">Green</button>
+                                <button class="btn btn-small" style="background:#0000ff;" onclick="setRGBColor(0,0,255)">Blue</button>
+                                <button class="btn btn-small" style="background:#ffff00;" onclick="setRGBColor(255,255,0)">Yellow</button>
+                                <button class="btn btn-small" style="background:#ff00ff;" onclick="setRGBColor(255,0,255)">Magenta</button>
+                                <button class="btn btn-small" style="background:#00ffff;" onclick="setRGBColor(0,255,255)">Cyan</button>
+                                <button class="btn btn-small" style="background:#ffffff;color:#000;" onclick="setRGBColor(255,255,255)">White</button>
+                                <button class="btn btn-small" style="background:#000000;" onclick="setRGBColor(0,0,0)">Off</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: COMMUNICATION -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="communication" class="tab-content">
+            <div class="grid grid-2">
+                
+                <!-- Peer List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Connected Peers</h2>
+                        <button class="btn btn-small" onclick="refreshPeers()">🔄</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="peer-list" class="peer-list">
+                            <div class="loading-spinner">Loading peers...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Send Message -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Send Message to Peer</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="message-form">
+                            <select id="peer-select" class="form-control">
+                                <option value="">Select peer...</option>
+                            </select>
+                            <textarea id="message-input" class="form-control" rows="4" 
+                                      placeholder='{"command":"test","value":123}'></textarea>
+                            <button class="btn btn-primary btn-block" onclick="sendMessageToPeer()">
+                                📤 Send Message
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Log -->
+                <div class="card card-large">
+                    <div class="card-header">
+                        <h2>Message Log</h2>
+                        <button class="btn btn-small" onclick="clearMessageLog()">🗑️ Clear</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="message-log" class="message-log">
+                            <p class="empty-state">No messages yet...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: CAMERA (ESP32-CAM only) -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="camera" class="tab-content">
+            <div class="card card-center">
+                <div class="card-header">
+                    <h2>Live Camera Stream</h2>
+                </div>
+                <div class="card-body">
+                    <div class="camera-container">
+                        <img id="camera-stream" src="/cam" alt="Camera feed" class="camera-feed">
+                    </div>
+                    <div class="camera-controls">
+                        <button class="btn btn-primary" onclick="capturePhoto()">📸 Capture Photo</button>
+                        <button class="btn btn-secondary" onclick="toggleFlash()">💡 Toggle Flash</button>
+                        <button class="btn btn-secondary" onclick="refreshCamera()">🔄 Refresh</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: LOGS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="logs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>System Logs</h2>
+                    <div class="log-controls">
+                        <select id="log-category" class="form-control" onchange="loadLogs()">
+                            <option value="sensors">Sensor Logs</option>
+                            <option value="events">Event Logs</option>
+                            <option value="errors">Error Logs</option>
+                            <option value="debug">Debug Logs</option>
+                        </select>
+                        <button class="btn btn-small" onclick="loadLogs()">🔄 Refresh</button>
+                        <button class="btn btn-small btn-danger" onclick="clearLogs()">🗑️ Clear</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="log-viewer" class="log-viewer">
+                        <pre id="log-content">Loading logs...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB: CONFIG -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="config" class="tab-content">
+            <div class="grid grid-2">
+                
+                <!-- Device Configuration -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Device Configuration</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="config-form" onsubmit="saveConfig(event)">
+                            <div class="form-group">
+                                <label>Device Name:</label>
+                                <input type="text" id="device-name-input" class="form-control" 
+                                       value="ESP32_Device_1">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Sensor Read Interval (ms):</label>
+                                <input type="number" id="sensor-interval" class="form-control" 
+                                       value="2000" min="100" max="60000">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="enable-logging" checked>
+                                    Enable Data Logging
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="enable-espnow" checked>
+                                    Enable ESP-NOW
+                                </label>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-block">
+                                💾 Save Configuration
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- System Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>System Actions</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="system-actions">
+                            <button class="btn btn-block btn-warning" onclick="restartDevice()">
+                                🔄 Restart Device
+                            </button>
+                            <button class="btn btn-block btn-danger" onclick="resetToFactory()">
+                                ⚠️ Factory Reset
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="exportData()">
+                                📥 Export Data
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="checkForUpdates()">
+                                🔍 Check for Updates
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Network Information</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">WiFi Status:</span>
+                                <span id="net-wifi-status" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">SSID:</span>
+                                <span id="net-ssid" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Signal:</span>
+                                <span id="net-signal" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">MAC Address:</span>
+                                <span id="net-mac" class="info-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- About -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>About</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="about-content">
+                            <h3>ESP32 Dual Communication System</h3>
+                            <p><strong>Version:</strong> 2.0.0</p>
+                            <p><strong>Features:</strong></p>
+                            <ul>
+                                <li>Two-way ESP-NOW communication</li>
+                                <li>Multi-sensor support</li>
+                                <li>Real-time web dashboard</li>
+                                <li>OTA firmware updates</li>
+                                <li>Data logging</li>
+                            </ul>
+                            <p class="copyright">© 2024 ESP32 Project</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display:none;">
+        <div class="loading-spinner-large"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
