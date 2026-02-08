@@ -484,7 +484,8 @@ void readAndSendSensorData()
   StaticJsonDocument<1024> doc;
 
   // Read all sensors and populate JSON
-  sensorManager.getAllSensorData(doc);
+  JsonObject root = doc.to<JsonObject>();
+  sensorManager.getAllSensorData(root);
 
   // Add metadata
   doc["timestamp"] = millis();

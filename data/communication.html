@@ -3,1056 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Communication</title>
+    <title>ESP32 DualComm System - Communication</title>
     <link rel="stylesheet" href="style.css">
-    <script src="assets/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>ESP32 DualComm System</h1>
-            <h2>Communication</h2>
+            <h2>Communication Center</h2>
         </header>
         
         <nav>
-            <a href="index.html">Dashboard</a>
-            <a href="sensors.html">Sensors</a>
-            <a href="actuators.html">Actuators</a>
-            <a href="camera.html">Camera</a>
-            <a href="communication.html" class="active">Communication</a>
-            <a href="logs.html">Logs</a>
-            <a href="config.html">Configuration</a>
+            <a href="index.html" onclick="onTabChange('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="sensors.html" onclick="onTabChange('sensors')"><i class="fas fa-thermometer-half"></i> Sensors</a>
+            <a href="actuators.html" onclick="onTabChange('actuators')"><i class="fas fa-cogs"></i> Actuators</a>
+            <a href="communication.html" class="active" onclick="onTabChange('communication')"><i class="fas fa-satellite-dish"></i> Communication</a>
+            <a href="wifi.html" onclick="onTabChange('wifi')"><i class="fas fa-wifi"></i> WiFi Manager</a>
+            <a href="ota.html" onclick="onTabChange('ota')"><i class="fas fa-upload"></i> OTA Updates</a>
+            <a href="logs.html" onclick="onTabChange('logs')"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="config.html" onclick="onTabChange('config')"><i class="fas fa-sliders-h"></i> Configuration</a>
         </nav>
 
+        <div class="comm-controls">
+            <button class="btn-primary" onclick="refreshAllData()">
+                <i class="fas fa-sync-alt"></i> Refresh All
+            </button>
+            <button class="btn-success" onclick="refreshPeers()">
+                <i class="fas fa-search"></i> Scan ESP-NOW
+            </button>
+            <button class="btn-info" onclick="scanWiFiNetworks()">
+                <i class="fas fa-wifi"></i> Scan WiFi
+            </button>
+            <button class="btn-danger" onclick="emergencyStop()">
+                <i class="fas fa-skull-crossbones"></i> Emergency Stop
+            </button>
+            <div style="display: flex; gap: var(--spacing-sm); margin-left: auto;">
+                <button class="btn-secondary" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i> Theme
+                </button>
+                <button class="btn-secondary" onclick="restartDevice()">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
+            </div>
+        </div>
+
         <main>
-            <!-- ESP-NOW Section -->
-            <div class="comm-section">
-                <h3>📡 ESP-NOW Communication</h3>
-                <div class="comm-controls">
-                    <button id="startEspNow" class="btn-primary">Start ESP-NOW</button>
-                    <button id="stopEspNow" class="btn-secondary">Stop ESP-NOW</button>
-                    <button id="scanPeers" class="btn-info">Scan for Peers</button>
-                    <button id="addPeer" class="btn-success">Add Peer</button>
-                    <button id="removePeer" class="btn-danger">Remove Peer</button>
+            <!-- Status Overview -->
+            <div class="stats-grid">
+                <div class="stat-card fade-in" style="animation-delay: 0ms">
+                    <h4>WiFi Status</h4>
+                    <div class="stat-value" id="wifi-quick-status">--</div>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                        <span class="label">IP:</span>
+                        <span class="value" id="wifi-quick-ip">--</span>
+                    </div>
                 </div>
                 
-                <div class="espnow-status">
-                    <div class="status-item">
-                        <span class="label">Status:</span>
-                        <span id="espnowStatus" class="value">Offline</span>
-                    </div>
-                    <div class="status-item">
+                <div class="stat-card fade-in" style="animation-delay: 100ms">
+                    <h4>ESP-NOW Status</h4>
+                    <div class="stat-value" id="espnow-quick-peers">--</div>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
                         <span class="label">Channel:</span>
-                        <span id="espnowChannel" class="value">-</span>
+                        <span class="value" id="espnow-quick-channel">--</span>
                     </div>
-                    <div class="status-item">
-                        <span class="label">Peers:</span>
-                        <span id="espnowPeers" class="value">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Last Message:</span>
-                        <span id="espnowLastMsg" class="value">-</span>
-                    </div>
-                </div>
-
-                <div class="peer-management">
-                    <h4>Peer Management</h4>
-                    <div class="peer-form">
-                        <input type="text" id="peerMac" placeholder="XX:XX:XX:XX:XX:XX">
-                        <input type="text" id="peerName" placeholder="Peer Name">
-                        <button id="addPeerBtn" class="btn-small">Add</button>
-                    </div>
-                    <div id="peerList" class="peer-list">
-                        <!-- Peers will be listed here -->
-                    </div>
-                </div>
-
-                <div class="message-section">
-                    <h4>Message Exchange</h4>
-                    <div class="message-form">
-                        <select id="messageType">
-                            <option value="sensor">Sensor Data</option>
-                            <option value="actuator">Actuator Control</option>
-                            <option value="camera">Camera Command</option>
-                            <option value="custom">Custom Message</option>
-                        </select>
-                        <textarea id="messageContent" placeholder="Message content..."></textarea>
-                        <button id="sendMessage" class="btn-primary">Send Message</button>
-                        <button id="broadcastMessage" class="btn-info">Broadcast</button>
-                    </div>
-                    <div class="message-history">
-                        <h5>Message History</h5>
-                        <div id="messageLog" class="message-log">
-                            <!-- Messages will appear here -->
-                        </div>
-                        <div class="message-controls">
-                            <button id="clearMessages" class="btn-small">Clear Log</button>
-                            <button id="exportMessages" class="btn-small">Export</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- WiFi Section -->
-            <div class="comm-section">
-                <h3>🌐 WiFi Communication</h3>
-                <div class="comm-controls">
-                    <button id="scanNetworks" class="btn-info">Scan Networks</button>
-                    <button id="connectWiFi" class="btn-primary">Connect to Network</button>
-                    <button id="disconnectWiFi" class="btn-warning">Disconnect</button>
-                    <button id="createAP" class="btn-success">Create AP</button>
                 </div>
                 
-                <div class="wifi-status">
-                    <div class="status-item">
-                        <span class="label">Status:</span>
-                        <span id="wifiStatus" class="value">Disconnected</span>
+                <div class="stat-card fade-in" style="animation-delay: 200ms">
+                    <h4>Messages</h4>
+                    <div class="stat-value" id="message-count">--</div>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                        <span class="label">Last:</span>
+                        <span class="value" id="last-message-time">--</span>
                     </div>
-                    <div class="status-item">
-                        <span class="label">SSID:</span>
-                        <span id="wifiSSID" class="value">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Signal:</span>
-                        <span id="wifiSignal" class="value">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">IP Address:</span>
-                        <span id="wifiIP" class="value">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">MAC Address:</span>
-                        <span id="wifiMAC" class="value">-</span>
-                    </div>
-                </div>
-
-                <div class="network-list">
-                    <h4>Available Networks</h4>
-                    <div id="networkList" class="network-list-container">
-                        <!-- Networks will be listed here -->
-                    </div>
-                </div>
-
-                <div class="connection-form">
-                    <h4>Manual Connection</h4>
-                    <div class="form-group">
-                        <input type="text" id="manualSSID" placeholder="SSID">
-                        <input type="password" id="manualPassword" placeholder="Password">
-                        <button id="connectManual" class="btn-primary">Connect</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MQTT Section -->
-            <div class="comm-section">
-                <h3>📨 MQTT Communication</h3>
-                <div class="comm-controls">
-                    <button id="connectMQTT" class="btn-primary">Connect to MQTT</button>
-                    <button id="disconnectMQTT" class="btn-warning">Disconnect MQTT</button>
-                    <button id="subscribeMQTT" class="btn-info">Subscribe</button>
-                    <button id="publishMQTT" class="btn-success">Publish</button>
                 </div>
                 
-                <div class="mqtt-status">
-                    <div class="status-item">
-                        <span class="label">Status:</span>
-                        <span id="mqttStatus" class="value">Disconnected</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Broker:</span>
-                        <span id="mqttBroker" class="value">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Client ID:</span>
-                        <span id="mqttClientID" class="value">-</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Topics:</span>
-                        <span id="mqttTopics" class="value">0</span>
+                <div class="stat-card fade-in" style="animation-delay: 300ms">
+                    <h4>System Health</h4>
+                    <div class="stat-value" id="comm-health">--</div>
+                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                        <span class="label">Uptime:</span>
+                        <span class="value" id="system-uptime">--</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="mqtt-config">
-                    <h4>MQTT Configuration</h4>
-                    <div class="config-grid">
-                        <div class="config-item">
-                            <label>Broker Address</label>
-                            <input type="text" id="mqttBrokerAddr" placeholder="mqtt.example.com">
+            <!-- ESP-NOW Communication -->
+            <div class="card fade-in" style="animation-delay: 400ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-broadcast-tower"></i> ESP-NOW Communication</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn-small btn-success" onclick="refreshPeers()">
+                            <i class="fas fa-search"></i> Scan
+                        </button>
+                        <button class="btn-small btn-info" onclick="clearMessageLog()">
+                            <i class="fas fa-trash"></i> Clear Log
+                        </button>
+                        <button class="btn-small btn-warning" onclick="toggleActuator('espnow', true)">
+                            <i class="fas fa-power-off"></i> Restart
+                        </button>
+                    </div>
+                </div>
+                <div style="padding: var(--spacing-lg);">
+                    <!-- ESP-NOW Status -->
+                    <div class="sensor-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: var(--spacing-lg);">
+                        <div class="data-item">
+                            <span class="label">Status:</span>
+                            <span id="espnow-status" class="value offline">Offline</span>
                         </div>
-                        <div class="config-item">
-                            <label>Port</label>
-                            <input type="number" id="mqttPort" value="1883" min="1" max="65535">
+                        <div class="data-item">
+                            <span class="label">Channel:</span>
+                            <span id="espnow-channel" class="value">-</span>
                         </div>
-                        <div class="config-item">
-                            <label>Username</label>
-                            <input type="text" id="mqttUsername" placeholder="username">
+                        <div class="data-item">
+                            <span class="label">Active Peers:</span>
+                            <span id="espnow-peers" class="value">0</span>
                         </div>
-                        <div class="config-item">
-                            <label>Password</label>
-                            <input type="password" id="mqttPassword" placeholder="password">
+                        <div class="data-item">
+                            <span class="label">Packets Sent:</span>
+                            <span id="espnow-sent" class="value">0</span>
                         </div>
-                        <div class="config-item">
-                            <label>Client ID</label>
-                            <input type="text" id="mqttClientIDInput" placeholder="esp32_client">
+                        <div class="data-item">
+                            <span class="label">Packets Received:</span>
+                            <span id="espnow-received" class="value">0</span>
                         </div>
-                        <div class="config-item">
-                            <label>QoS Level</label>
-                            <select id="mqttQoS">
-                                <option value="0">0 (At most once)</option>
-                                <option value="1" selected>1 (At least once)</option>
-                                <option value="2">2 (Exactly once)</option>
+                        <div class="data-item">
+                            <span class="label">Failed:</span>
+                            <span id="espnow-failed" class="value">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Peer Management -->
+                    <div style="background: var(--glass-bg); padding: var(--spacing-lg); border-radius: var(--radius-lg); margin-bottom: var(--spacing-lg);">
+                        <h3 style="margin-bottom: var(--spacing-md); color: var(--primary);">
+                            <i class="fas fa-users"></i> Peer Management
+                        </h3>
+                        
+                        <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap;">
+                            <input type="text" id="peer-mac-input" placeholder="XX:XX:XX:XX:XX:XX" 
+                                   style="flex: 1; min-width: 200px;">
+                            <input type="text" id="peer-name-input" placeholder="Peer Name (optional)" 
+                                   style="flex: 1; min-width: 150px;">
+                            <button class="btn-primary" onclick="addPeer()">
+                                <i class="fas fa-plus"></i> Add Peer
+                            </button>
+                        </div>
+
+                        <div id="peer-list" class="peer-list">
+                            <div class="empty-state">
+                                <i class="fas fa-user-slash"></i>
+                                <p>No peers found. Click "Scan" to discover nearby devices.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Message Sending -->
+                    <div style="background: var(--glass-bg); padding: var(--spacing-lg); border-radius: var(--radius-lg);">
+                        <h3 style="margin-bottom: var(--spacing-md); color: var(--primary);">
+                            <i class="fas fa-paper-plane"></i> Send Message
+                        </h3>
+                        
+                        <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md); flex-wrap: wrap;">
+                            <select id="peer-select" style="flex: 1; min-width: 200px;">
+                                <option value="">Select peer...</option>
+                                <option value="broadcast">📢 Broadcast to All</option>
                             </select>
+                            
+                            <select id="message-type" style="flex: 0 0 150px;">
+                                <option value="text">Text Message</option>
+                                <option value="sensor">Sensor Data</option>
+                                <option value="command">Command</option>
+                                <option value="json">JSON</option>
+                            </select>
+                            
+                            <input type="text" id="message-input" placeholder="Enter message..." 
+                                   style="flex: 2; min-width: 250px;">
+                            
+                            <button class="btn-primary" onclick="sendMessageToPeer()">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="mqtt-operations">
-                    <h4>MQTT Operations</h4>
-                    <div class="operation-form">
-                        <div class="form-group">
-                            <input type="text" id="mqttTopic" placeholder="Topic">
-                            <textarea id="mqttMessage" placeholder="Message"></textarea>
-                            <button id="publishBtn" class="btn-success">Publish</button>
-                        </div>
-                        <div class="form-group">
-                            <input type="text" id="subscribeTopic" placeholder="Topic to subscribe">
-                            <button id="subscribeBtn" class="btn-info">Subscribe</button>
-                            <button id="unsubscribeBtn" class="btn-warning">Unsubscribe</button>
-                        </div>
-                    </div>
-                    <div class="mqtt-messages">
-                        <h5>MQTT Messages</h5>
-                        <div id="mqttLog" class="message-log">
-                            <!-- MQTT messages will appear here -->
-                        </div>
-                        <div class="message-controls">
-                            <button id="clearMQTTLog" class="btn-small">Clear Log</button>
-                            <button id="exportMQTTLog" class="btn-small">Export</button>
+                        
+                        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                            <button class="btn-small btn-info" onclick="quickCommand('sensor_request')">
+                                <i class="fas fa-thermometer"></i> Request Sensors
+                            </button>
+                            <button class="btn-small btn-info" onclick="quickCommand('status_request')">
+                                <i class="fas fa-info-circle"></i> Request Status
+                            </button>
+                            <button class="btn-small btn-info" onclick="quickCommand('identify')">
+                                <i class="fas fa-fingerprint"></i> Identify
+                            </button>
+                            <button class="btn-small btn-warning" onclick="quickCommand('emergency_stop')">
+                                <i class="fas fa-stop-circle"></i> Emergency Stop
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Serial Communication Section -->
-            <div class="comm-section">
-                <h3>🔌 Serial Communication</h3>
-                <div class="comm-controls">
-                    <button id="openSerial" class="btn-primary">Open Serial</button>
-                    <button id="closeSerial" class="btn-warning">Close Serial</button>
-                    <button id="sendSerial" class="btn-success">Send</button>
-                    <button id="clearSerial" class="btn-danger">Clear</button>
-                </div>
-                
-                <div class="serial-config">
-                    <h4>Serial Configuration</h4>
-                    <div class="config-grid">
-                        <div class="config-item">
-                            <label>Baud Rate</label>
-                            <select id="baudRate">
-                                <option value="9600">9600</option>
-                                <option value="19200">19200</option>
-                                <option value="38400">38400</option>
-                                <option value="57600">57600</option>
-                                <option value="115200" selected>115200</option>
-                                <option value="230400">230400</option>
-                            </select>
-                        </div>
-                        <div class="config-item">
-                            <label>Data Bits</label>
-                            <select id="dataBits">
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8" selected>8</option>
-                            </select>
-                        </div>
-                        <div class="config-item">
-                            <label>Stop Bits</label>
-                            <select id="stopBits">
-                                <option value="1" selected>1</option>
-                                <option value="2">2</option>
-                            </select>
-                        </div>
-                        <div class="config-item">
-                            <label>Parity</label>
-                            <select id="parity">
-                                <option value="none" selected>None</option>
-                                <option value="even">Even</option>
-                                <option value="odd">Odd</option>
-                            </select>
+            <!-- Message Log -->
+            <div class="card fade-in" style="animation-delay: 500ms; margin-top: var(--spacing-lg);">
+                <div class="card-header">
+                    <h2><i class="fas fa-clipboard-list"></i> Message Log</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn-small btn-danger" onclick="clearMessageLog()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <button class="btn-small btn-info" onclick="exportMessageLog()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <span style="font-size: 0.875rem; color: var(--text-muted);">Auto-refresh:</span>
+                            <label class="switch">
+                                <input type="checkbox" id="auto-refresh-log" checked>
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
-
-                <div class="serial-terminal">
-                    <h4>Serial Terminal</h4>
-                    <div class="terminal-container">
-                        <div id="serialOutput" class="terminal-output">
-                            <!-- Serial output will appear here -->
-                        </div>
-                        <div class="terminal-input">
-                            <input type="text" id="serialInput" placeholder="Type message...">
-                            <button id="sendSerialBtn" class="btn-small">Send</button>
+                <div style="padding: var(--spacing-lg);">
+                    <div id="message-log" class="message-log">
+                        <div class="message-item">
+                            <span class="message-time">00:00:00</span>
+                            <span class="message-direction info">INFO</span>
+                            <span class="message-content">Communication system initialized. Ready to send and receive messages.</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Communication Statistics -->
-            <div class="comm-section">
-                <h3>📊 Communication Statistics</h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>ESP-NOW Stats</h4>
-                        <div class="stat-item">
-                            <span class="label">Messages Sent:</span>
-                            <span id="espnowSent" class="value">0</span>
+            <!-- WiFi Communication (Quick Overview) -->
+            <div class="card fade-in" style="animation-delay: 600ms; margin-top: var(--spacing-lg);">
+                <div class="card-header">
+                    <h2><i class="fas fa-wifi"></i> WiFi Communication</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn-small btn-success" onclick="location.href='wifi.html'">
+                            <i class="fas fa-external-link-alt"></i> WiFi Manager
+                        </button>
+                        <button class="btn-small btn-info" onclick="loadWiFiStatus()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div style="padding: var(--spacing-lg);">
+                    <div class="sensor-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-bottom: var(--spacing-lg);">
+                        <div class="data-item">
+                            <span class="label">Status:</span>
+                            <span id="wifi-status" class="value offline">Disconnected</span>
                         </div>
-                        <div class="stat-item">
-                            <span class="label">Messages Received:</span>
-                            <span id="espnowReceived" class="value">0</span>
+                        <div class="data-item">
+                            <span class="label">SSID:</span>
+                            <span id="wifi-ssid" class="value">-</span>
                         </div>
-                        <div class="stat-item">
-                            <span class="label">Success Rate:</span>
-                            <span id="espnowSuccess" class="value">0%</span>
+                        <div class="data-item">
+                            <span class="label">Signal:</span>
+                            <span id="wifi-signal" class="value">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">IP Address:</span>
+                            <span id="wifi-ip" class="value">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">MAC Address:</span>
+                            <span id="wifi-mac" class="value">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Gateway:</span>
+                            <span id="wifi-gateway" class="value">-</span>
                         </div>
                     </div>
                     
-                    <div class="stat-card">
-                        <h4>WiFi Stats</h4>
-                        <div class="stat-item">
-                            <span class="label">Uptime:</span>
-                            <span id="wifiUptime" class="value">0s</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Data Sent:</span>
-                            <span id="wifiSent" class="value">0 KB</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Data Received:</span>
-                            <span id="wifiReceived" class="value">0 KB</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <h4>MQTT Stats</h4>
-                        <div class="stat-item">
-                            <span class="label">Connected:</span>
-                            <span id="mqttConnectedTime" class="value">0s</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Messages Published:</span>
-                            <span id="mqttPublished" class="value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Messages Received:</span>
-                            <span id="mqttReceived" class="value">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <h4>Serial Stats</h4>
-                        <div class="stat-item">
-                            <span class="label">Bytes Sent:</span>
-                            <span id="serialSent" class="value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Bytes Received:</span>
-                            <span id="serialReceived" class="value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Errors:</span>
-                            <span id="serialErrors" class="value">0</span>
-                        </div>
+                    <div style="text-align: center; padding: var(--spacing-lg); background: rgba(0, 255, 255, 0.05); border-radius: var(--radius-lg);">
+                        <h3 style="color: var(--primary); margin-bottom: var(--spacing-md);">
+                            <i class="fas fa-external-link-alt"></i> Need WiFi Management?
+                        </h3>
+                        <p style="margin-bottom: var(--spacing-lg); color: var(--text-secondary);">
+                            Use the WiFi Manager for advanced features: network scanning, connection management, 
+                            and access point configuration.
+                        </p>
+                        <button class="btn-primary" onclick="location.href='wifi.html'">
+                            <i class="fas fa-wifi"></i> Open WiFi Manager
+                        </button>
                     </div>
                 </div>
             </div>
         </main>
+
+        <!-- Connection Status Footer -->
+        <footer style="margin-top: var(--spacing-xl); padding: var(--spacing-lg); background: var(--glass-bg); 
+                     border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                    <div id="status-indicator" class="status-indicator offline">
+                        <span id="connection-status">Disconnected</span>
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--text-muted);">
+                        <span id="current-time">00:00:00</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-microchip"></i> Heap: <span id="footer-memory">--</span>
+                    </span>
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-clock"></i> Uptime: <span id="footer-uptime">--</span>
+                    </span>
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-satellite"></i> ESP-NOW: <span id="footer-espnow">--</span>
+                    </span>
+                </div>
+                
+                <div>
+                    <button class="btn-small btn-secondary" onclick="connectWebSocket()">
+                        <i class="fas fa-plug"></i> Reconnect
+                    </button>
+                </div>
+            </div>
+        </footer>
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
     <script>
-        $(document).ready(function() {
-            loadCommunicationStatus();
-            setupEventListeners();
-            
-            // Auto-refresh status every 5 seconds
-            setInterval(loadCommunicationStatus, 5000);
-        });
-
-        function setupEventListeners() {
-            // ESP-NOW controls
-            $('#startEspNow').click(startEspNow);
-            $('#stopEspNow').click(stopEspNow);
-            $('#scanPeers').click(scanPeers);
-            $('#addPeer').click(showAddPeerForm);
-            $('#addPeerBtn').click(addPeer);
-            $('#removePeer').click(removePeer);
-            $('#sendMessage').click(sendMessage);
-            $('#broadcastMessage').click(broadcastMessage);
-            $('#clearMessages').click(clearMessages);
-            $('#exportMessages').click(exportMessages);
-
-            // WiFi controls
-            $('#scanNetworks').click(scanNetworks);
-            $('#connectWiFi').click(connectWiFi);
-            $('#disconnectWiFi').click(disconnectWiFi);
-            $('#createAP').click(createAP);
-            $('#connectManual').click(connectManual);
-
-            // MQTT controls
-            $('#connectMQTT').click(connectMQTT);
-            $('#disconnectMQTT').click(disconnectMQTT);
-            $('#subscribeMQTT').click(subscribeMQTT);
-            $('#publishMQTT').click(publishMQTT);
-            $('#publishBtn').click(publishMessage);
-            $('#subscribeBtn').click(subscribeTopic);
-            $('#unsubscribeBtn').click(unsubscribeTopic);
-            $('#clearMQTTLog').click(clearMQTTLog);
-            $('#exportMQTTLog').click(exportMQTTLog);
-
-            // Serial controls
-            $('#openSerial').click(openSerial);
-            $('#closeSerial').click(closeSerial);
-            $('#sendSerialBtn').click(sendSerialMessage);
-            $('#clearSerial').click(clearSerialOutput);
-        }
-
-        // ESP-NOW functions
-        function startEspNow() {
-            $.post('/api/espnow/start')
-                .done(function() {
-                    showMessage('ESP-NOW started', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to start ESP-NOW', 'error');
-                });
-        }
-
-        function stopEspNow() {
-            $.post('/api/espnow/stop')
-                .done(function() {
-                    showMessage('ESP-NOW stopped', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to stop ESP-NOW', 'error');
-                });
-        }
-
-        function scanPeers() {
-            $.post('/api/espnow/scan')
-                .done(function() {
-                    showMessage('Scanning for peers...', 'info');
-                    setTimeout(loadPeerList, 1000);
-                })
-                .fail(function() {
-                    showMessage('Failed to scan peers', 'error');
-                });
-        }
-
-        function showAddPeerForm() {
-            // Show add peer form
-            $('#peerMac').val('');
-            $('#peerName').val('');
-            $('#peerMac').focus();
-        }
-
+        // Communication-specific functions
         function addPeer() {
-            const mac = $('#peerMac').val();
-            const name = $('#peerName').val();
+            const mac = document.getElementById('peer-mac-input').value.trim();
+            const name = document.getElementById('peer-name-input').value.trim();
             
-            if (!mac) {
-                showMessage('Please enter a MAC address', 'warning');
+            if (!mac || !validateMAC(mac)) {
+                showToast('Please enter a valid MAC address (XX:XX:XX:XX:XX:XX)', 'warning');
                 return;
             }
-
-            $.post('/api/espnow/peers/add', {
-                mac: mac,
-                name: name
-            })
-            .done(function() {
-                showMessage('Peer added successfully', 'success');
-                loadPeerList();
-            })
-            .fail(function() {
-                showMessage('Failed to add peer', 'error');
-            });
-        }
-
-        function removePeer() {
-            const mac = prompt('Enter MAC address of peer to remove:');
-            if (mac) {
-                $.ajax({
-                    url: '/api/espnow/peers/' + mac,
-                    method: 'DELETE',
-                    success: function() {
-                        showMessage('Peer removed', 'success');
-                        loadPeerList();
-                    },
-                    error: function() {
-                        showMessage('Failed to remove peer', 'error');
-                    }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'addPeer',
+                    mac: mac,
+                    name: name || `Peer_${mac.substring(12)}`
                 });
+                
+                document.getElementById('peer-mac-input').value = '';
+                document.getElementById('peer-name-input').value = '';
+                showToast('Peer added successfully', 'success');
+                addActivityLog(`Added peer: ${mac}`);
+            } else {
+                showToast('Not connected to device', 'error');
             }
         }
-
-        function sendMessage() {
-            const type = $('#messageType').val();
-            const content = $('#messageContent').val();
+        
+        function validateMAC(mac) {
+            const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+            return macRegex.test(mac);
+        }
+        
+        function quickCommand(command) {
+            const peerSelect = document.getElementById('peer-select');
+            const peer = peerSelect.value;
             
-            if (!content) {
-                showMessage('Please enter a message', 'warning');
+            if (!peer && command !== 'broadcast') {
+                showToast('Please select a peer first', 'warning');
                 return;
             }
-
-            $.post('/api/espnow/message/send', {
-                type: type,
-                content: content
-            })
-            .done(function() {
-                showMessage('Message sent', 'success');
-                loadMessageLog();
-            })
-            .fail(function() {
-                showMessage('Failed to send message', 'error');
-            });
-        }
-
-        function broadcastMessage() {
-            const content = $('#messageContent').val();
             
-            if (!content) {
-                showMessage('Please enter a message', 'warning');
-                return;
-            }
-
-            $.post('/api/espnow/message/broadcast', {
-                content: content
-            })
-            .done(function() {
-                showMessage('Message broadcasted', 'success');
-                loadMessageLog();
-            })
-            .fail(function() {
-                showMessage('Failed to broadcast message', 'error');
-            });
-        }
-
-        function clearMessages() {
-            $.post('/api/espnow/messages/clear')
-                .done(function() {
-                    showMessage('Message log cleared', 'success');
-                    loadMessageLog();
-                })
-                .fail(function() {
-                    showMessage('Failed to clear message log', 'error');
-                });
-        }
-
-        function exportMessages() {
-            $.get('/api/espnow/messages/export')
-                .done(function(data) {
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'espnow_messages.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    showMessage('Messages exported', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to export messages', 'error');
-                });
-        }
-
-        // WiFi functions
-        function scanNetworks() {
-            $.post('/api/wifi/scan')
-                .done(function() {
-                    showMessage('Scanning networks...', 'info');
-                    setTimeout(loadNetworkList, 2000);
-                })
-                .fail(function() {
-                    showMessage('Failed to scan networks', 'error');
-                });
-        }
-
-        function connectWiFi() {
-            const ssid = prompt('Enter SSID:');
-            const password = prompt('Enter password:');
-            
-            if (ssid) {
-                $.post('/api/wifi/connect', {
-                    ssid: ssid,
-                    password: password
-                })
-                .done(function() {
-                    showMessage('Connecting to WiFi...', 'info');
-                    setTimeout(loadCommunicationStatus, 2000);
-                })
-                .fail(function() {
-                    showMessage('Failed to connect to WiFi', 'error');
-                });
-            }
-        }
-
-        function disconnectWiFi() {
-            $.post('/api/wifi/disconnect')
-                .done(function() {
-                    showMessage('Disconnected from WiFi', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to disconnect WiFi', 'error');
-                });
-        }
-
-        function createAP() {
-            const ssid = prompt('Enter AP SSID:', 'ESP32_AP');
-            const password = prompt('Enter AP password:', '12345678');
-            
-            if (ssid) {
-                $.post('/api/wifi/ap', {
-                    ssid: ssid,
-                    password: password
-                })
-                .done(function() {
-                    showMessage('AP created', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to create AP', 'error');
-                });
-            }
-        }
-
-        function connectManual() {
-            const ssid = $('#manualSSID').val();
-            const password = $('#manualPassword').val();
-            
-            if (!ssid) {
-                showMessage('Please enter SSID', 'warning');
-                return;
-            }
-
-            $.post('/api/wifi/connect', {
-                ssid: ssid,
-                password: password
-            })
-            .done(function() {
-                showMessage('Connecting to WiFi...', 'info');
-                setTimeout(loadCommunicationStatus, 2000);
-            })
-            .fail(function() {
-                showMessage('Failed to connect to WiFi', 'error');
-            });
-        }
-
-        // MQTT functions
-        function connectMQTT() {
-            const config = {
-                broker: $('#mqttBrokerAddr').val(),
-                port: parseInt($('#mqttPort').val()),
-                username: $('#mqttUsername').val(),
-                password: $('#mqttPassword').val(),
-                clientId: $('#mqttClientIDInput').val(),
-                qos: parseInt($('#mqttQoS').val())
+            const commands = {
+                'sensor_request': { type: 'sensor_request' },
+                'status_request': { type: 'status_request' },
+                'identify': { type: 'identify', action: 'blink' },
+                'emergency_stop': { type: 'emergency_stop' }
             };
-
-            $.post('/api/mqtt/connect', config)
-                .done(function() {
-                    showMessage('Connecting to MQTT...', 'info');
-                    setTimeout(loadCommunicationStatus, 1000);
-                })
-                .fail(function() {
-                    showMessage('Failed to connect to MQTT', 'error');
-                });
-        }
-
-        function disconnectMQTT() {
-            $.post('/api/mqtt/disconnect')
-                .done(function() {
-                    showMessage('Disconnected from MQTT', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to disconnect MQTT', 'error');
-                });
-        }
-
-        function publishMessage() {
-            const topic = $('#mqttTopic').val();
-            const message = $('#mqttMessage').val();
             
-            if (!topic || !message) {
-                showMessage('Please enter topic and message', 'warning');
-                return;
-            }
-
-            $.post('/api/mqtt/publish', {
-                topic: topic,
-                message: message,
-                qos: parseInt($('#mqttQoS').val())
-            })
-            .done(function() {
-                showMessage('Message published', 'success');
-                loadMQTTLog();
-            })
-            .fail(function() {
-                showMessage('Failed to publish message', 'error');
-            });
-        }
-
-        function subscribeTopic() {
-            const topic = $('#subscribeTopic').val();
-            
-            if (!topic) {
-                showMessage('Please enter a topic', 'warning');
-                return;
-            }
-
-            $.post('/api/mqtt/subscribe', {
-                topic: topic,
-                qos: parseInt($('#mqttQoS').val())
-            })
-            .done(function() {
-                showMessage('Subscribed to topic', 'success');
-                loadCommunicationStatus();
-            })
-            .fail(function() {
-                showMessage('Failed to subscribe to topic', 'error');
-            });
-        }
-
-        function unsubscribeTopic() {
-            const topic = $('#subscribeTopic').val();
-            
-            if (!topic) {
-                showMessage('Please enter a topic', 'warning');
-                return;
-            }
-
-            $.post('/api/mqtt/unsubscribe', {
-                topic: topic
-            })
-            .done(function() {
-                showMessage('Unsubscribed from topic', 'success');
-                loadCommunicationStatus();
-            })
-            .fail(function() {
-                showMessage('Failed to unsubscribe from topic', 'error');
-            });
-        }
-
-        function clearMQTTLog() {
-            $.post('/api/mqtt/log/clear')
-                .done(function() {
-                    showMessage('MQTT log cleared', 'success');
-                    loadMQTTLog();
-                })
-                .fail(function() {
-                    showMessage('Failed to clear MQTT log', 'error');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'sendToPeer',
+                    peer: peer || 'broadcast',
+                    message: commands[command]
                 });
+                
+                showToast(`Command sent: ${command}`, 'success');
+                addActivityLog(`Sent ${command} command to ${peer || 'all peers'}`);
+            }
         }
-
-        function exportMQTTLog() {
-            $.get('/api/mqtt/log/export')
-                .done(function(data) {
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'mqtt_messages.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    showMessage('MQTT messages exported', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to export MQTT messages', 'error');
-                });
-        }
-
-        // Serial functions
-        function openSerial() {
-            const config = {
-                baudRate: parseInt($('#baudRate').val()),
-                dataBits: parseInt($('#dataBits').val()),
-                stopBits: parseInt($('#stopBits').val()),
-                parity: $('#parity').val()
+        
+        function exportMessageLog() {
+            const messages = Array.from(document.querySelectorAll('.message-item')).map(item => ({
+                time: item.querySelector('.message-time').textContent,
+                direction: item.querySelector('.message-direction').textContent,
+                content: item.querySelector('.message-content').textContent
+            }));
+            
+            const data = {
+                timestamp: new Date().toISOString(),
+                totalMessages: messages.length,
+                messages: messages
             };
-
-            $.post('/api/serial/open', config)
-                .done(function() {
-                    showMessage('Serial port opened', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to open serial port', 'error');
-                });
-        }
-
-        function closeSerial() {
-            $.post('/api/serial/close')
-                .done(function() {
-                    showMessage('Serial port closed', 'success');
-                    loadCommunicationStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to close serial port', 'error');
-                });
-        }
-
-        function sendSerialMessage() {
-            const message = $('#serialInput').val();
             
-            if (!message) {
-                showMessage('Please enter a message', 'warning');
-                return;
-            }
-
-            $.post('/api/serial/send', {
-                message: message
-            })
-            .done(function() {
-                showMessage('Message sent', 'success');
-                $('#serialInput').val('');
-                loadSerialOutput();
-            })
-            .fail(function() {
-                showMessage('Failed to send message', 'error');
-            });
-        }
-
-        function clearSerialOutput() {
-            $.post('/api/serial/clear')
-                .done(function() {
-                    showMessage('Serial output cleared', 'success');
-                    loadSerialOutput();
-                })
-                .fail(function() {
-                    showMessage('Failed to clear serial output', 'error');
-                });
-        }
-
-        // Status loading functions
-        function loadCommunicationStatus() {
-            $.get('/api/communication/status')
-                .done(function(data) {
-                    updateCommunicationStatus(data);
-                })
-                .fail(function() {
-                    showMessage('Failed to load communication status', 'error');
-                });
-        }
-
-        function updateCommunicationStatus(data) {
-            // ESP-NOW status
-            const espnowStatus = data.espnow.enabled ? 'Online' : 'Offline';
-            $('#espnowStatus').text(espnowStatus).removeClass('online offline').addClass(data.espnow.enabled ? 'online' : 'offline');
-            $('#espnowChannel').text(data.espnow.channel || '-');
-            $('#espnowPeers').text(data.espnow.peers || '0');
-            $('#espnowLastMsg').text(data.espnow.lastMessage || '-');
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `esp32_messages_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
             
-            // WiFi status
-            const wifiStatus = data.wifi.connected ? 'Connected' : 'Disconnected';
-            $('#wifiStatus').text(wifiStatus).removeClass('connected disconnected').addClass(data.wifi.connected ? 'connected' : 'disconnected');
-            $('#wifiSSID').text(data.wifi.ssid || '-');
-            $('#wifiSignal').text(data.wifi.signal || '-');
-            $('#wifiIP').text(data.wifi.ip || '-');
-            $('#wifiMAC').text(data.wifi.mac || '-');
-            
-            // MQTT status
-            const mqttStatus = data.mqtt.connected ? 'Connected' : 'Disconnected';
-            $('#mqttStatus').text(mqttStatus).removeClass('connected disconnected').addClass(data.mqtt.connected ? 'connected' : 'disconnected');
-            $('#mqttBroker').text(data.mqtt.broker || '-');
-            $('#mqttClientID').text(data.mqtt.clientId || '-');
-            $('#mqttTopics').text(data.mqtt.topics || '0');
-            
-            // Update statistics
-            $('#espnowSent').text(data.espnow.stats?.sent || '0');
-            $('#espnowReceived').text(data.espnow.stats?.received || '0');
-            $('#espnowSuccess').text(data.espnow.stats?.successRate || '0%');
-            $('#wifiUptime').text(data.wifi.stats?.uptime || '0s');
-            $('#wifiSent').text(data.wifi.stats?.dataSent || '0 KB');
-            $('#wifiReceived').text(data.wifi.stats?.dataReceived || '0 KB');
-            $('#mqttConnectedTime').text(data.mqtt.stats?.connectedTime || '0s');
-            $('#mqttPublished').text(data.mqtt.stats?.published || '0');
-            $('#mqttReceived').text(data.mqtt.stats?.received || '0');
-            $('#serialSent').text(data.serial.stats?.sent || '0');
-            $('#serialReceived').text(data.serial.stats?.received || '0');
-            $('#serialErrors').text(data.serial.stats?.errors || '0');
+            showToast('Message log exported', 'success');
+            addActivityLog('Exported message log');
         }
-
-        function loadPeerList() {
-            $.get('/api/espnow/peers')
-                .done(function(peers) {
-                    const list = $('#peerList');
-                    list.empty();
-                    
-                    if (peers.length === 0) {
-                        list.html('<div class="no-peers">No peers found</div>');
-                        return;
-                    }
-                    
-                    peers.forEach(function(peer) {
-                        const peerDiv = $('<div class="peer-item">');
-                        const info = $('<div class="peer-info">');
-                        info.html('<strong>' + (peer.name || peer.mac) + '</strong><br><small>' + peer.mac + '</small>');
-                        
-                        const actions = $('<div class="peer-actions">');
-                        const removeBtn = $('<button class="btn-small btn-danger">Remove</button>').click(function() {
-                            removePeerByMac(peer.mac);
-                        });
-                        
-                        actions.append(removeBtn);
-                        peerDiv.append(info, actions);
-                        list.append(peerDiv);
-                    });
-                })
-                .fail(function() {
-                    showMessage('Failed to load peer list', 'error');
-                });
-        }
-
-        function loadNetworkList() {
-            $.get('/api/wifi/networks')
-                .done(function(networks) {
-                    const list = $('#networkList');
-                    list.empty();
-                    
-                    if (networks.length === 0) {
-                        list.html('<div class="no-networks">No networks found</div>');
-                        return;
-                    }
-                    
-                    networks.forEach(function(network) {
-                        const networkDiv = $('<div class="network-item">');
-                        const info = $('<div class="network-info">');
-                        info.html('<strong>' + network.ssid + '</strong><br><small>Channel: ' + network.channel + ' | Signal: ' + network.rssi + 'dBm</small>');
-                        
-                        const actions = $('<div class="network-actions">');
-                        const connectBtn = $('<button class="btn-small">Connect</button>').click(function() {
-                            connectToNetwork(network.ssid);
-                        });
-                        
-                        actions.append(connectBtn);
-                        networkDiv.append(info, actions);
-                        list.append(networkDiv);
-                    });
-                })
-                .fail(function() {
-                    showMessage('Failed to load network list', 'error');
-                });
-        }
-
-        function loadMessageLog() {
-            $.get('/api/espnow/messages')
-                .done(function(messages) {
-                    const log = $('#messageLog');
-                    log.empty();
-                    
-                    if (messages.length === 0) {
-                        log.html('<div class="no-messages">No messages</div>');
-                        return;
-                    }
-                    
-                    messages.forEach(function(msg) {
-                        const msgDiv = $('<div class="message-item">');
-                        const time = $('<div class="message-time">').text(new Date(msg.timestamp).toLocaleString());
-                        const content = $('<div class="message-content">').text(msg.content);
-                        
-                        msgDiv.append(time, content);
-                        log.append(msgDiv);
-                    });
-                })
-                .fail(function() {
-                    showMessage('Failed to load message log', 'error');
-                });
-        }
-
-        function loadMQTTLog() {
-            $.get('/api/mqtt/messages')
-                .done(function(messages) {
-                    const log = $('#mqttLog');
-                    log.empty();
-                    
-                    if (messages.length === 0) {
-                        log.html('<div class="no-messages">No messages</div>');
-                        return;
-                    }
-                    
-                    messages.forEach(function(msg) {
-                        const msgDiv = $('<div class="message-item">');
-                        const time = $('<div class="message-time">').text(new Date(msg.timestamp).toLocaleString());
-                        const topic = $('<div class="message-topic">').text('Topic: ' + msg.topic);
-                        const content = $('<div class="message-content">').text(msg.content);
-                        
-                        msgDiv.append(time, topic, content);
-                        log.append(msgDiv);
-                    });
-                })
-                .fail(function() {
-                    showMessage('Failed to load MQTT log', 'error');
-                });
-        }
-
-        function loadSerialOutput() {
-            $.get('/api/serial/output')
-                .done(function(output) {
-                    const terminal = $('#serialOutput');
-                    terminal.empty();
-                    
-                    if (output.length === 0) {
-                        terminal.html('<div class="no-output">No output</div>');
-                        return;
-                    }
-                    
-                    output.forEach(function(line) {
-                        const lineDiv = $('<div class="serial-line">').text(line);
-                        terminal.append(lineDiv);
-                    });
-                })
-                .fail(function() {
-                    showMessage('Failed to load serial output', 'error');
-                });
-        }
-
-        function removePeerByMac(mac) {
-            $.ajax({
-                url: '/api/espnow/peers/' + mac,
-                method: 'DELETE',
-                success: function() {
-                    showMessage('Peer removed', 'success');
-                    loadPeerList();
-                },
-                error: function() {
-                    showMessage('Failed to remove peer', 'error');
+        
+        // Auto-refresh for message log
+        let logRefreshInterval;
+        const autoRefreshToggle = document.getElementById('auto-refresh-log');
+        
+        if (autoRefreshToggle) {
+            autoRefreshToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    startLogRefresh();
+                } else {
+                    stopLogRefresh();
                 }
             });
-        }
-
-        function connectToNetwork(ssid) {
-            const password = prompt('Enter password for ' + ssid + ':');
             
-            $.post('/api/wifi/connect', {
-                ssid: ssid,
-                password: password
-            })
-            .done(function() {
-                showMessage('Connecting to ' + ssid + '...', 'info');
-                setTimeout(loadCommunicationStatus, 2000);
-            })
-            .fail(function() {
-                showMessage('Failed to connect to ' + ssid, 'error');
-            });
+            startLogRefresh();
         }
-
-        function showMessage(message, type) {
-            // This could be implemented with a toast notification system
-            console.log('[' + type.toUpperCase() + '] ' + message);
+        
+        function startLogRefresh() {
+            if (logRefreshInterval) clearInterval(logRefreshInterval);
+            logRefreshInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    sendWSMessage({ type: 'getPeers' });
+                }
+            }, 30000); // Refresh every 30 seconds
         }
+        
+        function stopLogRefresh() {
+            if (logRefreshInterval) {
+                clearInterval(logRefreshInterval);
+                logRefreshInterval = null;
+            }
+        }
+        
+        // Initialize communication-specific elements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add keyboard shortcut for sending messages (Ctrl+Enter)
+            const messageInput = document.getElementById('message-input');
+            if (messageInput) {
+                messageInput.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        sendMessageToPeer();
+                    }
+                });
+            }
+            
+            // Update clock in footer
+            function updateClock() {
+                const element = document.getElementById('current-time');
+                if (element) {
+                    const now = new Date();
+                    element.textContent = now.toLocaleTimeString();
+                }
+            }
+            
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            // Initialize activity log
+            addActivityLog('Communication module loaded');
+        });
     </script>
+
+    <!-- Include the main JavaScript file -->
+    <script src="script.js"></script>
 </body>
 </html>

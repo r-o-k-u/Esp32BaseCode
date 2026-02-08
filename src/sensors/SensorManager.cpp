@@ -33,7 +33,7 @@ bool SensorManager::begin()
 /**
  * @brief Get all sensor data
  */
-void SensorManager::getAllSensorData(JsonDocument &doc)
+void SensorManager::getAllSensorData(JsonObject doc)
 {
     // Add basic sensor data
     doc["temperature"] = 25.0;

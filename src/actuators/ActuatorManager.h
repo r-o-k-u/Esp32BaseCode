@@ -80,11 +80,11 @@ public:
     String getStatus();
     bool saveConfiguration();
     bool loadConfiguration();
+    void loadDefaultConfiguration();
     void update();
 
 private:
     void initializeActuators();
-    void loadDefaultConfiguration();
     void executeSceneInternal(const String &sceneName);
 };
 

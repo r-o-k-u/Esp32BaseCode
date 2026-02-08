@@ -23,7 +23,7 @@ public:
     bool begin();
 
     // Sensor reading
-    void getAllSensorData(JsonDocument &doc);
+    void getAllSensorData(JsonObject doc);
     float getTemperature();
     float getHumidity();
     float getPressure();

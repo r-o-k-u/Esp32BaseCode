@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ESP32 WiFi Manager">
+    <title>ESP32 Control Panel - WiFi Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Main layout structure matching index.html */
+        :root {
+            --primary: #00FFFF;
+            --primary-light: #66FFFF;
+            --primary-dark: #00CCCC;
+            --secondary: #FF00FF;
+            --success: #00FF88;
+            --warning: #FFAA00;
+            --danger: #FF0055;
+            --info: #00AAFF;
+            --bg-primary: #0D0D1A;
+            --bg-secondary: #1A1A2E;
+            --bg-card: rgba(26, 26, 46, 0.8);
+            --glass-bg: rgba(26, 26, 46, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #FFFFFF;
+            --text-secondary: #B8B8CC;
+            --text-muted: #8888AA;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 0, 255, 0.1) 0%, transparent 50%);
+        }
+
+        /* Container */
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(90deg, 
+                rgba(13, 13, 26, 0.9) 0%, 
+                rgba(26, 26, 46, 0.9) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: var(--spacing-lg) var(--spacing-xl);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin-bottom: var(--spacing-sm);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        header h2 {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            text-align: center;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            flex-wrap: wrap;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        nav::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                var(--primary), 
+                var(--secondary), 
+                var(--primary), 
+                transparent);
+        }
+
+        nav a {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 50px;
+            transition: var(--transition-base);
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid transparent;
+        }
+
+        nav a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(0, 255, 255, 0.1), 
+                transparent);
+            transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        nav a:hover {
+            color: var(--primary);
+            background: rgba(0, 255, 255, 0.05);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.2);
+        }
+
+        nav a:hover::before {
+            left: 100%;
+        }
+
+        nav a.active {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 255, 0.15) 0%, 
+                rgba(255, 0, 255, 0.1) 100%);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 
+                       inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        nav a i {
+            font-size: 1.1rem;
+            transition: var(--transition-base);
+        }
+
+        nav a.active i {
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Control Buttons */
+        .comm-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md) var(--spacing-xl);
+            background: linear-gradient(90deg, 
+                rgba(26, 26, 46, 0.8) 0%, 
+                rgba(13, 13, 26, 0.8) 100%);
+            border-bottom: 1px solid var(--glass-border);
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: none;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-base);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: relative;
+            overflow: hidden;
+            outline: none;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 255, 0.2) 0%, 
+                rgba(0, 255, 255, 0.1) 100%);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 136, 0.2) 0%, 
+                rgba(0, 255, 136, 0.1) 100%);
+            border: 1px solid var(--success);
+            color: var(--success);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn-success:hover {
+            background: var(--success);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, 
+                rgba(0, 170, 255, 0.2) 0%, 
+                rgba(0, 170, 255, 0.1) 100%);
+            border: 1px solid var(--info);
+            color: var(--info);
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+        }
+
+        .btn-info:hover {
+            background: var(--info);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px rgba(0, 170, 255, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, 
+                rgba(255, 0, 85, 0.2) 0%, 
+                rgba(255, 0, 85, 0.1) 100%);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.1) 0%, 
+                rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: translateY(-3px);
+        }
+
+        .btn-small {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.8rem;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: var(--spacing-xl);
+            background: linear-gradient(135deg, 
+                rgba(13, 13, 26, 0.7) 0%, 
+                rgba(26, 26, 46, 0.7) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        main::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 255, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        /* Cards */
+        .card {
+            background: linear-gradient(135deg, 
+                rgba(26, 26, 46, 0.95) 0%, 
+                rgba(13, 13, 26, 0.95) 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            transition: var(--transition-base);
+            position: relative;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary);
+            border-color: var(--primary);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                var(--primary), 
+                var(--secondary), 
+                var(--primary), 
+                transparent);
+            animation: cardGlow 3s linear infinite;
+        }
+
+        @keyframes cardGlow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .card-header {
+            padding: var(--spacing-lg);
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h2 {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card-header h2 i {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+        }
+
+        .card-body {
+            padding: var(--spacing-lg);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: var(--spacing-md);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: var(--transition-base);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Network List */
+        .network-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .network-item {
+            padding: var(--spacing-md);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-base);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: fadeInUp 0.3s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .network-item:hover {
+            background: rgba(0, 255, 255, 0.05);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.1);
+        }
+
+        .network-info {
+            flex: 1;
+        }
+
+        .network-ssid {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .network-details {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        .network-signal {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .signal-bars {
+            display: flex;
+            gap: 2px;
+        }
+
+        .signal-bar {
+            width: 4px;
+            background: var(--text-muted);
+            border-radius: 2px;
+        }
+
+        .signal-bar.active {
+            background: var(--primary);
+        }
+
+        .signal-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            min-width: 60px;
+        }
+
+        /* Status Grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .status-item {
+            padding: var(--spacing-lg);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            transition: var(--transition-base);
+        }
+
+        .status-item:hover {
+            background: rgba(0, 255, 255, 0.05);
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.1);
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            font-family: monospace;
+        }
+
+        .status-value.connected {
+            color: var(--success);
+        }
+
+        .status-value.disconnected {
+            color: var(--danger);
+        }
+
+        /* Footer */
+        footer {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            background: linear-gradient(90deg, 
+                rgba(13, 13, 26, 0.9) 0%, 
+                rgba(26, 26, 46, 0.9) 100%);
+            border-top: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: var(--spacing-lg);
+            flex-wrap: wrap;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .footer-content span {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .footer-content .separator {
+            width: 1px;
+            height: 12px;
+            background: var(--glass-border);
+        }
+
+        /* Toast Container */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: linear-gradient(135deg, 
+                rgba(26, 26, 46, 0.95) 0%, 
+                rgba(13, 13, 26, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-left: 4px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md) var(--spacing-lg);
+            min-width: 300px;
+            max-width: 400px;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        .toast.info {
+            border-left-color: var(--info);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 13, 26, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid transparent;
+            border-top: 3px solid var(--primary);
+            border-right: 3px solid var(--secondary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header {
+                padding: var(--spacing-md);
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            header h2 {
+                font-size: 0.9rem;
+            }
+            
+            nav {
+                padding: var(--spacing-sm);
+                justify-content: flex-start;
+                overflow-x: auto;
+            }
+            
+            nav a {
+                padding: var(--spacing-sm);
+                font-size: 0.9rem;
+            }
+            
+            .comm-controls {
+                padding: var(--spacing-sm);
+                justify-content: center;
+            }
+            
+            main {
+                padding: var(--spacing-md);
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            nav a {
+                font-size: 0.8rem;
+            }
+            
+            nav a i {
+                font-size: 0.9rem;
+            }
+            
+            .btn {
+                padding: var(--spacing-sm);
+                font-size: 0.8rem;
+            }
+            
+            .card-header {
+                flex-direction: column;
+                gap: var(--spacing-md);
+                align-items: flex-start;
+            }
+            
+            .card-header h2 {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>ESP32 DualComm System</h1>
+            <h2>WiFi Manager</h2>
+        </header>
+        
+        <!-- Navigation -->
+        <nav>
+            <a href="index.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="sensors.html"><i class="fas fa-thermometer-half"></i> Sensors</a>
+            <a href="actuators.html"><i class="fas fa-cogs"></i> Actuators</a>
+            <a href="communication.html"><i class="fas fa-satellite-dish"></i> Communication</a>
+            <a href="wifi.html" class="active"><i class="fas fa-wifi"></i> WiFi Manager</a>
+            <a href="ota.html"><i class="fas fa-upload"></i> OTA Updates</a>
+            <a href="logs.html"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="config.html"><i class="fas fa-sliders-h"></i> Configuration</a>
+        </nav>
+
+        <!-- Control Buttons -->
+        <div class="comm-controls">
+            <button class="btn btn-primary" onclick="refreshWiFiStatus()">
+                <i class="fas fa-sync-alt"></i> Refresh Status
+            </button>
+            <button class="btn btn-success" onclick="scanWiFiNetworks()">
+                <i class="fas fa-wifi"></i> Scan Networks
+            </button>
+            <button class="btn btn-info" onclick="loadWiFiStatus()">
+                <i class="fas fa-plug"></i> Connection Info
+            </button>
+            <button class="btn btn-danger" onclick="emergencyStop()">
+                <i class="fas fa-skull-crossbones"></i> Emergency Stop
+            </button>
+            <div style="display: flex; gap: var(--spacing-sm); margin-left: auto;">
+                <button class="btn btn-secondary" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i> Theme
+                </button>
+                <button class="btn btn-secondary" onclick="restartDevice()">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Current Connection Status -->
+            <div class="card fade-in" style="animation-delay: 0ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-plug"></i> Current Connection</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-small btn-success" onclick="loadWiFiStatus()">
+                            <i class="fas fa-redo"></i> Refresh
+                        </button>
+                        <button class="btn btn-small btn-danger" onclick="disconnectWiFi()">
+                            <i class="fas fa-unlink"></i> Disconnect
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Connection Status</div>
+                            <div id="wifi-connection-status" class="status-value disconnected">Disconnected</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">SSID</div>
+                            <div id="wifi-current-ssid" class="status-value">Not connected</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Signal Strength</div>
+                            <div id="wifi-current-rssi" class="status-value">-- dBm</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">IP Address</div>
+                            <div id="wifi-current-ip" class="status-value">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">MAC Address</div>
+                            <div id="wifi-current-mac" class="status-value">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Gateway</div>
+                            <div id="wifi-current-gateway" class="status-value">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Subnet Mask</div>
+                            <div id="wifi-current-subnet" class="status-value">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">DNS Server</div>
+                            <div id="wifi-current-dns" class="status-value">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Scan -->
+            <div class="card fade-in" style="animation-delay: 100ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-search"></i> Available Networks</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-small btn-success" onclick="scanWiFiNetworks()">
+                            <i class="fas fa-sync-alt"></i> Scan
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="clearNetworkList()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="wifi-network-list" class="network-list">
+                        <div style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);">
+                            <i class="fas fa-wifi" style="font-size: 3rem; margin-bottom: var(--spacing-md);"></i>
+                            <p>Click "Scan Networks" to discover available WiFi networks</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connect to Network -->
+            <div class="card fade-in" style="animation-delay: 200ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-sign-in-alt"></i> Connect to Network</h2>
+                </div>
+                <div class="card-body">
+                    <div id="wifi-connect-form">
+                        <div class="form-group">
+                            <label class="form-label" for="wifi-ssid-input">SSID</label>
+                            <input type="text" id="wifi-ssid-input" class="form-control" 
+                                   placeholder="Enter network SSID">
+                        </div>
+                        
+                        <div class="form-group" id="wifi-password-group">
+                            <label class="form-label" for="wifi-password-input">Password</label>
+                            <input type="password" id="wifi-password-input" class="form-control" 
+                                   placeholder="Enter network password">
+                        </div>
+                        
+                        <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                            <button class="btn btn-primary" onclick="connectToWiFi()" style="flex: 1;">
+                                <i class="fas fa-plug"></i> Connect
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearConnectionForm()" style="flex: 1;">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Access Point Configuration -->
+            <div class="card fade-in" style="animation-delay: 300ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-broadcast-tower"></i> Access Point Mode</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <span id="wifi-ap-status" class="status-value disconnected" style="font-size: 1rem;">Inactive</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div style="margin-bottom: var(--spacing-lg);">
+                        <div class="status-grid" style="grid-template-columns: repeat(2, 1fr);">
+                            <div class="status-item">
+                                <div class="status-label">AP SSID</div>
+                                <div id="wifi-ap-ssid" class="status-value">ESP32-AP</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">AP IP Address</div>
+                                <div id="wifi-ap-ip" class="status-value">192.168.4.1</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Connected Clients</div>
+                                <div id="wifi-ap-clients" class="status-value">0</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-label">Channel</div>
+                                <div id="wifi-ap-channel" class="status-value">1</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="ap-config-form">
+                        <div class="form-group">
+                            <label class="form-label" for="ap-ssid-input">Access Point SSID</label>
+                            <input type="text" id="ap-ssid-input" class="form-control" 
+                                   value="ESP32-AP" placeholder="Enter AP SSID">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="ap-password-input">AP Password (min 8 chars)</label>
+                            <input type="password" id="ap-password-input" class="form-control" 
+                                   placeholder="Leave empty for open network">
+                        </div>
+                        
+                        <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                            <button class="btn btn-success" onclick="startAccessPoint()" style="flex: 1;">
+                                <i class="fas fa-play"></i> Start AP
+                            </button>
+                            <button class="btn btn-danger" onclick="stopAccessPoint()" style="flex: 1;">
+                                <i class="fas fa-stop"></i> Stop AP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WiFi Statistics -->
+            <div class="card fade-in" style="animation-delay: 400ms">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-bar"></i> WiFi Statistics</h2>
+                    <button class="btn btn-small btn-info" onclick="loadWiFiStatistics()">
+                        <i class="fas fa-chart-line"></i> Update
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Total Scans</div>
+                            <div id="wifi-total-scans" class="status-value">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Connection Attempts</div>
+                            <div id="wifi-connection-attempts" class="status-value">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Successful Connections</div>
+                            <div id="wifi-successful-connections" class="status-value">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Failed Connections</div>
+                            <div id="wifi-failed-connections" class="status-value">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Total Uptime</div>
+                            <div id="wifi-total-uptime" class="status-value">0s</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Data Transferred</div>
+                            <div id="wifi-data-transferred" class="status-value">0 B</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-lg);">
+                        <div class="status-label" style="margin-bottom: var(--spacing-sm);">Network Quality</div>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                            <div style="flex: 1; height: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; overflow: hidden;">
+                                <div id="wifi-quality-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--danger), var(--warning), var(--success)); border-radius: 10px;"></div>
+                            </div>
+                            <span id="wifi-quality-text" style="font-size: 0.9rem; color: var(--text-muted); min-width: 60px;">Poor</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-content">
+                <span>ESP32 WiFi Manager v4.0</span>
+                <span class="separator"></span>
+                <span id="current-time">00:00:00</span>
+                <span class="separator"></span>
+                <span>Mode: <span id="wifi-mode">Station</span></span>
+                <span class="separator"></span>
+                <span>Channel: <span id="wifi-channel">--</span></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // WiFi Manager JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 WiFi Manager initializing...');
+            
+            // Initialize clock
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            // Load initial status
+            loadWiFiStatus();
+            
+            // Initialize WiFi statistics
+            initializeWiFiStatistics();
+            
+            // Check for saved networks
+            loadSavedNetworks();
+            
+            console.log('✅ WiFi Manager ready');
+        });
+        
+        // Global variables
+        let wifiNetworks = [];
+        let wifiStats = {
+            totalScans: 0,
+            connectionAttempts: 0,
+            successfulConnections: 0,
+            failedConnections: 0,
+            totalUptime: 0,
+            dataTransferred: 0,
+            lastConnection: null,
+            savedNetworks: []
+        };
+        
+        function initializeWiFiStatistics() {
+            // Load saved statistics from localStorage
+            const saved = localStorage.getItem('wifiStats');
+            if (saved) {
+                wifiStats = JSON.parse(saved);
+                updateWiFiStatisticsDisplay();
+            }
+        }
+        
+        function saveWiFiStatistics() {
+            localStorage.setItem('wifiStats', JSON.stringify(wifiStats));
+        }
+        
+        function loadWiFiStatus() {
+            showLoading(true);
+            
+            fetch('/api/wifi/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateWiFiStatusDisplay(data);
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Error loading WiFi status:', error);
+                    showToast('Failed to load WiFi status', 'error');
+                    showLoading(false);
+                });
+        }
+        
+        function refreshWiFiStatus() {
+            loadWiFiStatus();
+            showToast('Refreshing WiFi status...', 'info');
+        }
+        
+        function updateWiFiStatusDisplay(data) {
+            // Update connection status
+            const statusElement = document.getElementById('wifi-connection-status');
+            if (statusElement) {
+                statusElement.textContent = data.connected ? 'Connected' : 'Disconnected';
+                statusElement.className = data.connected ? 'status-value connected' : 'status-value disconnected';
+            }
+            
+            // Update connection details
+            updateElementText('wifi-current-ssid', data.ssid || 'Not connected');
+            updateElementText('wifi-current-rssi', data.rssi ? data.rssi + ' dBm' : '-- dBm');
+            updateElementText('wifi-current-ip', data.ip || '--');
+            updateElementText('wifi-current-mac', data.mac || '--');
+            updateElementText('wifi-current-gateway', data.gateway || '--');
+            updateElementText('wifi-current-subnet', data.subnet || '--');
+            updateElementText('wifi-current-dns', data.dns || '--');
+            
+            // Update WiFi mode
+            const modeElement = document.getElementById('wifi-mode');
+            if (modeElement) {
+                modeElement.textContent = data.apMode ? 'Access Point' : 'Station';
+            }
+            
+            // Update AP status if in AP mode
+            if (data.apMode) {
+                updateElementText('wifi-ap-status', 'Active');
+                document.getElementById('wifi-ap-status').className = 'status-value connected';
+                
+                // Update AP details
+                if (data.apSSID) updateElementText('wifi-ap-ssid', data.apSSID);
+                if (data.apIP) updateElementText('wifi-ap-ip', data.apIP);
+                if (data.apClients !== undefined) updateElementText('wifi-ap-clients', data.apClients);
+            } else {
+                updateElementText('wifi-ap-status', 'Inactive');
+                document.getElementById('wifi-ap-status').className = 'status-value disconnected';
+            }
+            
+            // Update network quality indicator
+            updateNetworkQuality(data.rssi);
+            
+            // Add to activity log
+            addActivityLog(`WiFi status: ${data.connected ? 'Connected' : 'Disconnected'}`);
+        }
+        
+        function scanWiFiNetworks() {
+            showLoading(true);
+            wifiStats.totalScans++;
+            saveWiFiStatistics();
+            
+            // Clear current list
+            const networkList = document.getElementById('wifi-network-list');
+            if (networkList) {
+                networkList.innerHTML = '<div style="text-align: center; padding: var(--spacing-md);"><i class="fas fa-spinner fa-spin"></i> Scanning networks...</div>';
+            }
+            
+            showToast('Scanning for WiFi networks...', 'info');
+            addActivityLog('Scanning WiFi networks');
+            
+            fetch('/api/wifi/scan')
+                .then(response => response.json())
+                .then(data => {
+                    wifiNetworks = data.networks || [];
+                    displayWiFiNetworks(wifiNetworks);
+                    showToast(`Found ${data.count} networks`, 'success');
+                    addActivityLog(`Found ${data.count} WiFi networks`);
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Error scanning WiFi:', error);
+                    showToast('Failed to scan networks', 'error');
+                    if (networkList) {
+                        networkList.innerHTML = '<div style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);"><i class="fas fa-wifi-slash"></i> Failed to scan networks</div>';
+                    }
+                    showLoading(false);
+                });
+        }
+        
+        function displayWiFiNetworks(networks) {
+            const networkList = document.getElementById('wifi-network-list');
+            if (!networkList) return;
+            
+            if (!networks || networks.length === 0) {
+                networkList.innerHTML = '<div style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);"><i class="fas fa-wifi"></i> No networks found</div>';
+                return;
+            }
+            
+            // Sort by signal strength
+            networks.sort((a, b) => b.rssi - a.rssi);
+            
+            let html = '';
+            networks.forEach((network, index) => {
+                const signalStrength = getSignalStrength(network.rssi);
+                const secureIcon = network.encryption === 'Open' ? '<i class="fas fa-unlock" style="color: var(--success);"></i>' : '<i class="fas fa-lock" style="color: var(--warning);"></i>';
+                const signalBars = getSignalBars(network.rssi);
+                const delay = index * 50;
+                
+                html += `
+                    <div class="network-item" style="animation-delay: ${delay}ms" onclick="selectWiFiNetwork('${network.ssid.replace(/'/g, "\\'")}', '${network.encryption}')">
+                        <div class="network-info">
+                            <div class="network-ssid">${network.ssid}</div>
+                            <div class="network-details">
+                                <span>${secureIcon} ${network.encryption}</span>
+                                <span>Channel ${network.channel || '--'}</span>
+                            </div>
+                        </div>
+                        <div class="network-signal">
+                            <div class="signal-bars">
+                                ${signalBars}
+                            </div>
+                            <div class="signal-text">${network.rssi} dBm</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            networkList.innerHTML = html;
+        }
+        
+        function getSignalStrength(rssi) {
+            if (rssi >= -50) return { text: 'Excellent', color: '#00FF88', icon: 'fas fa-wifi' };
+            if (rssi >= -60) return { text: 'Good', color: '#8BC34A', icon: 'fas fa-wifi' };
+            if (rssi >= -70) return { text: 'Fair', color: '#FF9800', icon: 'fas fa-wifi' };
+            return { text: 'Weak', color: '#F44336', icon: 'fas fa-wifi' };
+        }
+        
+        function getSignalBars(rssi) {
+            let bars = '';
+            const barCount = Math.min(4, Math.max(1, Math.floor((rssi + 100) / 12.5)));
+            
+            for (let i = 0; i < 4; i++) {
+                bars += `<div class="signal-bar ${i < barCount ? 'active' : ''}" style="height: ${(i + 1) * 8}px;"></div>`;
+            }
+            
+            return bars;
+        }
+        
+        function selectWiFiNetwork(ssid, encryption) {
+            const ssidInput = document.getElementById('wifi-ssid-input');
+            const passwordInput = document.getElementById('wifi-password-input');
+            const passwordGroup = document.getElementById('wifi-password-group');
+            
+            if (ssidInput) ssidInput.value = ssid;
+            
+            if (passwordGroup) {
+                passwordGroup.style.display = encryption === 'Open' ? 'none' : 'block';
+            }
+            
+            if (passwordInput && encryption === 'Open') {
+                passwordInput.value = '';
+            }
+            
+            // Highlight selected network
+            const networkItems = document.querySelectorAll('.network-item');
+            networkItems.forEach(item => {
+                item.style.borderColor = '';
+                item.style.background = '';
+            });
+            
+            // Find and highlight the clicked network
+            networkItems.forEach(item => {
+                const itemSSID = item.querySelector('.network-ssid')?.textContent;
+                if (itemSSID === ssid) {
+                    item.style.borderColor = 'var(--primary)';
+                    item.style.background = 'rgba(0, 255, 255, 0.05)';
+                    
+                    // Scroll to connect form
+                    setTimeout(() => {
+                        const connectForm = document.getElementById('wifi-connect-form');
+                        if (connectForm) {
+                            connectForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 300);
+                }
+            });
+            
+            showToast(`Selected: ${ssid}`, 'info');
+        }
+        
+        function connectToWiFi() {
+            const ssid = document.getElementById('wifi-ssid-input')?.value;
+            const password = document.getElementById('wifi-password-input')?.value;
+            
+            if (!ssid) {
+                showToast('Please enter SSID', 'warning');
+                return;
+            }
+            
+            wifiStats.connectionAttempts++;
+            saveWiFiStatistics();
+            
+            showToast(`Connecting to ${ssid}...`, 'info');
+            addActivityLog(`Connecting to WiFi: ${ssid}`);
+            showLoading(true);
+            
+            fetch('/api/wifi/connect', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ssid, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    wifiStats.successfulConnections++;
+                    wifiStats.lastConnection = new Date().toISOString();
+                    saveWiFiStatistics();
+                    
+                    showToast(`✅ Connected to ${ssid}`, 'success');
+                    addActivityLog(`Connected to WiFi: ${ssid} (${data.ip})`);
+                    
+                    // Save to saved networks
+                    saveNetworkToHistory(ssid);
+                    
+                    // Clear form
+                    clearConnectionForm();
+                    
+                    // Reload status
+                    setTimeout(() => {
+                        loadWiFiStatus();
+                    }, 2000);
+                } else {
+                    wifiStats.failedConnections++;
+                    saveWiFiStatistics();
+                    
+                    showToast(`❌ Failed: ${data.error || 'Connection failed'}`, 'error');
+                    addActivityLog(`WiFi connection failed: ${data.error || 'Unknown error'}`);
+                }
+                showLoading(false);
+            })
+            .catch(error => {
+                console.error('Error connecting to WiFi:', error);
+                wifiStats.failedConnections++;
+                saveWiFiStatistics();
+                showToast('Connection error', 'error');
+                showLoading(false);
+            });
+        }
+        
+        function disconnectWiFi() {
+            if (!confirm('Are you sure you want to disconnect from the current WiFi network?')) {
+                return;
+            }
+            
+            showLoading(true);
+            
+            fetch('/api/wifi/disconnect', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('WiFi disconnected', 'success');
+                        addActivityLog('WiFi disconnected');
+                        loadWiFiStatus();
+                    }
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Error disconnecting WiFi:', error);
+                    showToast('Failed to disconnect', 'error');
+                    showLoading(false);
+                });
+        }
+        
+        function startAccessPoint() {
+            const apSSID = document.getElementById('ap-ssid-input')?.value || 'ESP32-AP';
+            const apPassword = document.getElementById('ap-password-input')?.value || '';
+            
+            if (apPassword && apPassword.length < 8) {
+                showToast('AP password must be at least 8 characters', 'warning');
+                return;
+            }
+            
+            showToast('Starting Access Point...', 'info');
+            addActivityLog(`Starting AP: ${apSSID}`);
+            showLoading(true);
+            
+            fetch('/api/wifi/ap/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ssid: apSSID, password: apPassword })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`✅ AP started: ${data.ssid}`, 'success');
+                    addActivityLog(`Access Point started: ${data.ssid} (${data.ip})`);
+                    
+                    // Update UI
+                    updateElementText('wifi-ap-status', 'Active');
+                    document.getElementById('wifi-ap-status').className = 'status-value connected';
+                    updateElementText('wifi-ap-ssid', data.ssid);
+                    updateElementText('wifi-ap-ip', data.ip);
+                } else {
+                    showToast(`Failed to start AP: ${data.error || 'Unknown error'}`, 'error');
+                }
+                showLoading(false);
+            })
+            .catch(error => {
+                console.error('Error starting AP:', error);
+                showToast('Failed to start AP', 'error');
+                showLoading(false);
+            });
+        }
+        
+        function stopAccessPoint() {
+            if (!confirm('Stop Access Point? This will disconnect all connected clients.')) {
+                return;
+            }
+            
+            showLoading(true);
+            
+            fetch('/api/wifi/ap/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Access Point stopped', 'success');
+                        addActivityLog('Access Point stopped');
+                        
+                        // Update UI
+                        updateElementText('wifi-ap-status', 'Inactive');
+                        document.getElementById('wifi-ap-status').className = 'status-value disconnected';
+                    }
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Error stopping AP:', error);
+                    showToast('Failed to stop AP', 'error');
+                    showLoading(false);
+                });
+        }
+        
+        function clearNetworkList() {
+            const networkList = document.getElementById('wifi-network-list');
+            if (networkList) {
+                networkList.innerHTML = '<div style="text-align: center; padding: var(--spacing-xl); color: var(--text-muted);"><i class="fas fa-wifi"></i> Network list cleared</div>';
+                showToast('Network list cleared', 'info');
+            }
+        }
+        
+        function clearConnectionForm() {
+            const ssidInput = document.getElementById('wifi-ssid-input');
+            const passwordInput = document.getElementById('wifi-password-input');
+            
+            if (ssidInput) ssidInput.value = '';
+            if (passwordInput) passwordInput.value = '';
+            
+            // Unhighlight any selected network
+            const networkItems = document.querySelectorAll('.network-item');
+            networkItems.forEach(item => {
+                item.style.borderColor = '';
+                item.style.background = '';
+            });
+            
+            showToast('Connection form cleared', 'info');
+        }
+        
+        function loadWiFiStatistics() {
+            updateWiFiStatisticsDisplay();
+            showToast('WiFi statistics updated', 'info');
+        }
+        
+        function updateWiFiStatisticsDisplay() {
+            updateElementText('wifi-total-scans', wifiStats.totalScans);
+            updateElementText('wifi-connection-attempts', wifiStats.connectionAttempts);
+            updateElementText('wifi-successful-connections', wifiStats.successfulConnections);
+            updateElementText('wifi-failed-connections', wifiStats.failedConnections);
+            updateElementText('wifi-total-uptime', formatDuration(wifiStats.totalUptime));
+            updateElementText('wifi-data-transferred', formatBytes(wifiStats.dataTransferred));
+        }
+        
+        function loadSavedNetworks() {
+            const saved = localStorage.getItem('savedNetworks');
+            if (saved) {
+                wifiStats.savedNetworks = JSON.parse(saved);
+            }
+        }
+        
+        function saveNetworkToHistory(ssid) {
+            const network = {
+                ssid: ssid,
+                lastConnected: new Date().toISOString(),
+                connectionCount: 1
+            };
+            
+            const existingIndex = wifiStats.savedNetworks.findIndex(n => n.ssid === ssid);
+            if (existingIndex >= 0) {
+                wifiStats.savedNetworks[existingIndex].lastConnected = network.lastConnected;
+                wifiStats.savedNetworks[existingIndex].connectionCount++;
+            } else {
+                wifiStats.savedNetworks.push(network);
+            }
+            
+            // Keep only last 10 networks
+            if (wifiStats.savedNetworks.length > 10) {
+                wifiStats.savedNetworks.shift();
+            }
+            
+            localStorage.setItem('savedNetworks', JSON.stringify(wifiStats.savedNetworks));
+        }
+        
+        function updateNetworkQuality(rssi) {
+            const qualityBar = document.getElementById('wifi-quality-bar');
+            const qualityText = document.getElementById('wifi-quality-text');
+            
+            if (qualityBar && qualityText && rssi) {
+                let quality = 0;
+                let text = 'Poor';
+                
+                if (rssi >= -50) {
+                    quality = 100;
+                    text = 'Excellent';
+                } else if (rssi >= -60) {
+                    quality = 75;
+                    text = 'Good';
+                } else if (rssi >= -70) {
+                    quality = 50;
+                    text = 'Fair';
+                } else if (rssi >= -80) {
+                    quality = 25;
+                    text = 'Weak';
+                }
+                
+                qualityBar.style.width = quality + '%';
+                qualityText.textContent = text;
+                qualityText.style.color = getSignalStrength(rssi).color;
+            }
+        }
+        
+        // Utility functions
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            updateElementText('current-time', timeString);
+        }
+        
+        function updateElementText(id, text) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = text;
+            }
+        }
+        
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem;">${icons[type] || '💬'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+                toast.style.opacity = '1';
+            }, 10);
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+            
+            toast.addEventListener('click', () => {
+                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            });
+        }
+        
+        function showLoading(show) {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.style.display = show ? 'flex' : 'none';
+            }
+        }
+        
+        function addActivityLog(message) {
+            console.log(`[Activity] ${message}`);
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+            return (bytes / 1073741824).toFixed(1) + ' GB';
+        }
+        
+        function formatDuration(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+        
+        // Navigation functions
+        function onTabChange(tabName) {
+            // Remove active class from all links
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Add active class to current link
+            event.target.classList.add('active');
+        }
+        
+        // System functions (from main script)
+        function emergencyStop() {
+            if (confirm('EMERGENCY STOP: This will immediately stop all actuators. Continue?')) {
+                fetch('/api/actuators/emergency-stop', {method: 'POST'})
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('Emergency stop activated', 'warning');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error activating emergency stop:', error);
+                        showToast('Communication error', 'error');
+                    });
+            }
+        }
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            showToast(`${isDark ? 'Dark' : 'Light'} mode activated`, 'info');
+        }
+        
+        function restartDevice() {
+            if (confirm('Are you sure you want to restart the device?')) {
+                fetch('/api/restart', {method: 'POST'})
+                    .then(() => {
+                        showToast('Device restarting...', 'warning');
+                        setTimeout(() => location.reload(), 5000);
+                    })
+                    .catch(error => {
+                        console.error('Error restarting:', error);
+                        showToast('Failed to restart device', 'error');
+                    });
+            }
+        }
+        
+        // Add click animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    // Ripple effect
+                    const ripple = document.createElement('span');
+                    const rect = this.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height);
+                    const x = e.clientX - rect.left - size / 2;
+                    const y = e.clientY - rect.top - size / 2;
+                    
+                    ripple.style.cssText = `
+                        position: absolute;
+                        border-radius: 50%;
+                        background: rgba(255, 255, 255, 0.5);
+                        transform: scale(0);
+                        animation: ripple 0.6s linear;
+                        width: ${size}px;
+                        height: ${size}px;
+                        top: ${y}px;
+                        left: ${x}px;
+                        pointer-events: none;
+                    `;
+                    
+                    this.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                });
+            });
+            
+            // Add CSS for ripple animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes ripple {
+                    to {
+                        transform: scale(4);
+                        opacity: 0;
+                    }
+                }
+                
+                .dark-mode {
+                    --bg-primary: #121212;
+                    --bg-secondary: #1e1e1e;
+                    --text-primary: #ffffff;
+                    --text-secondary: #cccccc;
+                }
+            `;
+            document.head.appendChild(style);
+        });
+        
+        console.log('🎯 WiFi Manager UI ready');
+    </script>
+</body>
+</html>

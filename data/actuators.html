@@ -3,771 +3,984 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Actuators</title>
+    <title>ESP32 DualComm System - Actuator Control</title>
     <link rel="stylesheet" href="style.css">
-    <script src="assets/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>ESP32 DualComm System</h1>
-            <h2>Actuator Control</h2>
+            <h2>Actuator Control Center</h2>
         </header>
         
         <nav>
-            <a href="index.html">Dashboard</a>
-            <a href="sensors.html">Sensors</a>
-            <a href="actuators.html" class="active">Actuators</a>
-            <a href="camera.html">Camera</a>
-            <a href="communication.html">Communication</a>
-            <a href="logs.html">Logs</a>
-            <a href="config.html">Configuration</a>
+            <a href="index.html" onclick="onTabChange('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="sensors.html" onclick="onTabChange('sensors')"><i class="fas fa-thermometer-half"></i> Sensors</a>
+            <a href="actuators.html" class="active" onclick="onTabChange('actuators')"><i class="fas fa-cogs"></i> Actuators</a>
+            <a href="communication.html" onclick="onTabChange('communication')"><i class="fas fa-satellite-dish"></i> Communication</a>
+            <a href="wifi.html" onclick="onTabChange('wifi')"><i class="fas fa-wifi"></i> WiFi Manager</a>
+            <a href="ota.html" onclick="onTabChange('ota')"><i class="fas fa-upload"></i> OTA Updates</a>
+            <a href="logs.html" onclick="onTabChange('logs')"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="config.html" onclick="onTabChange('config')"><i class="fas fa-sliders-h"></i> Configuration</a>
         </nav>
 
-        <main>
-            <div class="controls">
-                <button id="emergencyStop" class="btn-danger">🚨 Emergency Stop</button>
-                <button id="allOff" class="btn-warning">All Off</button>
-                <button id="allOn" class="btn-primary">All On</button>
-                <button id="savePreset" class="btn-secondary">Save Preset</button>
-                <button id="loadPreset" class="btn-secondary">Load Preset</button>
+        <div class="controls">
+            <button class="btn-danger" onclick="emergencyStop()">
+                <i class="fas fa-skull-crossbones"></i> Emergency Stop
+            </button>
+            <button class="btn-warning" onclick="resetAllActuators()">
+                <i class="fas fa-power-off"></i> Reset All
+            </button>
+            <button class="btn-success" onclick="allActuatorsOn()">
+                <i class="fas fa-toggle-on"></i> All On
+            </button>
+            <button class="btn-info" onclick="allActuatorsOff()">
+                <i class="fas fa-toggle-off"></i> All Off
+            </button>
+            <button class="btn-primary" onclick="saveActuatorPreset()">
+                <i class="fas fa-save"></i> Save Preset
+            </button>
+            
+            <div style="display: flex; gap: var(--spacing-sm); margin-left: auto;">
+                <button class="btn-secondary" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i> Theme
+                </button>
+                <button class="btn-secondary" onclick="restartDevice()">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
             </div>
+        </div>
 
+        <!-- Actuator Status Overview -->
+        <div class="stats-grid">
+            <div class="stat-card fade-in" style="animation-delay: 0ms">
+                <h4>Active Actuators</h4>
+                <div class="stat-value" id="active-actuators">0</div>
+                <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                    <span class="label">Total:</span>
+                    <span class="value">6</span>
+                </div>
+            </div>
+            
+            <div class="stat-card fade-in" style="animation-delay: 100ms">
+                <h4>Power Draw</h4>
+                <div class="stat-value" id="power-draw">-- W</div>
+                <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                    <span class="label">Status:</span>
+                    <span class="value" id="power-status">--</span>
+                </div>
+            </div>
+            
+            <div class="stat-card fade-in" style="animation-delay: 200ms">
+                <h4>Last Action</h4>
+                <div class="stat-value" id="last-action">--</div>
+                <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                    <span class="label">Time:</span>
+                    <span class="value" id="action-time">--</span>
+                </div>
+            </div>
+            
+            <div class="stat-card fade-in" style="animation-delay: 300ms">
+                <h4>Safety Status</h4>
+                <div class="stat-value success" id="safety-status">OK</div>
+                <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                    <span class="label">Mode:</span>
+                    <span class="value" id="safety-mode">Normal</span>
+                </div>
+            </div>
+        </div>
+
+        <main>
+            <!-- Main Actuator Grid -->
             <div class="actuator-grid">
                 <!-- LED Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 0ms">
                     <div class="actuator-header">
-                        <h3>💡 LED</h3>
-                        <div class="status-indicator" id="ledStatus">OFF</div>
+                        <h3><i class="fas fa-lightbulb" style="color: #FFCE56;"></i> LED Control</h3>
+                        <div class="status-indicator" id="led-status">OFF</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="control-group">
-                            <button class="btn-toggle" id="ledToggle">Toggle</button>
-                            <button class="btn-small" onclick="testActuator('led')">Test</button>
+                        <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="toggleActuator('led', 'toggle')">
+                                <i class="fas fa-toggle-on"></i> Toggle
+                            </button>
+                            <button class="btn-small btn-success" onclick="toggleActuator('led', true)">
+                                <i class="fas fa-power-off"></i> On
+                            </button>
+                            <button class="btn-small btn-danger" onclick="toggleActuator('led', false)">
+                                <i class="fas fa-power-off"></i> Off
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="testLED()">
+                                <i class="fas fa-vial"></i> Test
+                            </button>
+                            <button class="btn-small btn-info" onclick="blinkLED()">
+                                <i class="fas fa-blink"></i> Blink
+                            </button>
+                        </div>
+                        
+                        <div style="margin-bottom: var(--spacing-lg);">
+                            <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                <i class="fas fa-sun"></i> Brightness: <span id="led-brightness-value">50</span>%
+                            </label>
+                            <input type="range" id="led-brightness" min="0" max="255" value="128" 
+                                   onchange="updateLEDBrightness(this.value)"
+                                   style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-top: var(--spacing-xs);">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">0%</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">100%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Buzzer Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 50ms">
                     <div class="actuator-header">
-                        <h3>🔊 Buzzer</h3>
-                        <div class="status-indicator" id="buzzerStatus">OFF</div>
+                        <h3><i class="fas fa-volume-up" style="color: #FF6384;"></i> Buzzer Control</h3>
+                        <div class="status-indicator" id="buzzer-status">OFF</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="control-group">
-                            <button class="btn-toggle" id="buzzerToggle">Toggle</button>
-                            <button class="btn-small" onclick="playBeep()">Beep</button>
-                            <button class="btn-small" onclick="playMelody()">Melody</button>
+                        <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="toggleActuator('buzzer', 'toggle')">
+                                <i class="fas fa-toggle-on"></i> Toggle
+                            </button>
+                            <button class="btn-small btn-success" onclick="triggerBuzzer(500)">
+                                <i class="fas fa-bell"></i> Beep
+                            </button>
+                            <button class="btn-small btn-info" onclick="playMelody('startup')">
+                                <i class="fas fa-music"></i> Startup
+                            </button>
+                            <button class="btn-small btn-warning" onclick="playMelody('alert')">
+                                <i class="fas fa-exclamation-triangle"></i> Alert
+                            </button>
+                            <button class="btn-small btn-danger" onclick="playMelody('emergency')">
+                                <i class="fas fa-siren"></i> Siren
+                            </button>
                         </div>
-                        <div class="control-group">
-                            <label>Frequency: <span id="freqValue">1000</span> Hz</label>
-                            <input type="range" id="buzzerFreq" min="100" max="5000" value="1000">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                            <div>
+                                <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                    <i class="fas fa-wave-square"></i> Frequency: <span id="freq-value">1000</span> Hz
+                                </label>
+                                <input type="range" id="buzzer-freq" min="100" max="5000" value="1000" step="10"
+                                       oninput="document.getElementById('freq-value').textContent = this.value"
+                                       style="width: 100%;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                    <i class="fas fa-clock"></i> Duration: <span id="dur-value">500</span> ms
+                                </label>
+                                <input type="range" id="buzzer-dur" min="50" max="5000" value="500" step="50"
+                                       oninput="document.getElementById('dur-value').textContent = this.value"
+                                       style="width: 100%;">
+                            </div>
                         </div>
-                        <div class="control-group">
-                            <label>Duration: <span id="durValue">500</span> ms</label>
-                            <input type="range" id="buzzerDur" min="100" max="3000" value="500">
+                        
+                        <div style="margin-top: var(--spacing-md);">
+                            <button class="btn-small btn-secondary" onclick="playCustomTone()" style="width: 100%;">
+                                <i class="fas fa-play"></i> Play Custom Tone
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- RGB LED Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 100ms">
                     <div class="actuator-header">
-                        <h3>🌈 RGB LED</h3>
-                        <div class="status-indicator" id="rgbStatus">OFF</div>
+                        <h3><i class="fas fa-palette" style="color: #9966FF;"></i> RGB LED Control</h3>
+                        <div class="status-indicator" id="rgb-status">OFF</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="color-picker">
-                            <input type="color" id="rgbColor" value="#000000">
-                            <button class="btn-small" onclick="setRGBColor()">Set Color</button>
+                        <div style="display: flex; gap: var(--spacing-md); align-items: center; margin-bottom: var(--spacing-lg);">
+                            <input type="color" id="rgb-color" value="#FF0000" 
+                                   onchange="updateRGBFromPicker(this.value)"
+                                   style="width: 60px; height: 60px; border-radius: var(--radius-md); border: 2px solid var(--glass-border); cursor: pointer;">
+                            <button class="btn-primary" onclick="setRGBColor()" style="flex: 1;">
+                                <i class="fas fa-check"></i> Apply Color
+                            </button>
                         </div>
-                        <div class="rgb-sliders">
-                            <div class="slider-group">
-                                <label>R: <span id="rValue">0</span></label>
-                                <input type="range" id="rgbR" min="0" max="255" value="0">
+                        
+                        <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                            <div>
+                                <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                    <span style="color: #FF0000;">●</span> Red: <span id="r-value">255</span>
+                                </label>
+                                <input type="range" id="rgb-r" min="0" max="255" value="255"
+                                       oninput="updateRGBSliders()"
+                                       style="width: 100%; accent-color: #FF0000;">
                             </div>
-                            <div class="slider-group">
-                                <label>G: <span id="gValue">0</span></label>
-                                <input type="range" id="rgbG" min="0" max="255" value="0">
+                            <div>
+                                <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                    <span style="color: #00FF00;">●</span> Green: <span id="g-value">0</span>
+                                </label>
+                                <input type="range" id="rgb-g" min="0" max="255" value="0"
+                                       oninput="updateRGBSliders()"
+                                       style="width: 100%; accent-color: #00FF00;">
                             </div>
-                            <div class="slider-group">
-                                <label>B: <span id="bValue">0</span></label>
-                                <input type="range" id="rgbB" min="0" max="255" value="0">
+                            <div>
+                                <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                    <span style="color: #0000FF;">●</span> Blue: <span id="b-value">0</span>
+                                </label>
+                                <input type="range" id="rgb-b" min="0" max="255" value="0"
+                                       oninput="updateRGBSliders()"
+                                       style="width: 100%; accent-color: #0000FF;">
                             </div>
                         </div>
-                        <div class="control-group">
-                            <label>Brightness: <span id="brightValue">255</span></label>
-                            <input type="range" id="rgbBright" min="0" max="255" value="255">
+                        
+                        <div style="margin-top: var(--spacing-lg); display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                            <button class="btn-small btn-success" onclick="setRGBColor(255, 0, 0)">
+                                <i class="fas fa-circle" style="color: #FF0000;"></i> Red
+                            </button>
+                            <button class="btn-small btn-success" onclick="setRGBColor(0, 255, 0)">
+                                <i class="fas fa-circle" style="color: #00FF00;"></i> Green
+                            </button>
+                            <button class="btn-small btn-success" onclick="setRGBColor(0, 0, 255)">
+                                <i class="fas fa-circle" style="color: #0000FF;"></i> Blue
+                            </button>
+                            <button class="btn-small btn-success" onclick="setRGBColor(255, 255, 255)">
+                                <i class="fas fa-circle" style="color: #FFFFFF;"></i> White
+                            </button>
                         </div>
-                        <div class="control-group">
-                            <button class="btn-small" onclick="rainbowCycle()">Rainbow</button>
-                            <button class="btn-small" onclick="colorWipe()">Color Wipe</button>
-                            <button class="btn-small" onclick="theaterChase()">Theater Chase</button>
-                            <button class="btn-small" onclick="twinkle()">Twinkle</button>
+                        
+                        <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                            <button class="btn-small btn-info" onclick="rgbEffect('rainbow')">
+                                <i class="fas fa-rainbow"></i> Rainbow
+                            </button>
+                            <button class="btn-small btn-info" onclick="rgbEffect('pulse')">
+                                <i class="fas fa-heartbeat"></i> Pulse
+                            </button>
+                            <button class="btn-small btn-info" onclick="rgbEffect('chase')">
+                                <i class="fas fa-running"></i> Chase
+                            </button>
+                            <button class="btn-small btn-info" onclick="rgbEffect('fire')">
+                                <i class="fas fa-fire"></i> Fire
+                            </button>
+                            <button class="btn-small btn-info" onclick="rgbEffect('stop')">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Motor Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 150ms">
                     <div class="actuator-header">
-                        <h3>⚡ Motor</h3>
-                        <div class="status-indicator" id="motorStatus">STOPPED</div>
+                        <h3><i class="fas fa-motorcycle" style="color: #36A2EB;"></i> Motor Control</h3>
+                        <div class="status-indicator" id="motor-status">STOPPED</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="control-group">
-                            <button class="btn-small" onclick="motorForward()">Forward</button>
-                            <button class="btn-small" onclick="motorReverse()">Reverse</button>
-                            <button class="btn-small" onclick="motorStop()">Stop</button>
-                            <button class="btn-small" onclick="motorBrake()">Brake</button>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); margin-bottom: var(--spacing-lg);">
+                            <button class="btn-small btn-success" onclick="motorForward()">
+                                <i class="fas fa-arrow-up"></i> Forward
+                            </button>
+                            <button class="btn-small btn-warning" onclick="motorBackward()">
+                                <i class="fas fa-arrow-down"></i> Backward
+                            </button>
+                            <button class="btn-small btn-danger" onclick="motorStop()">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                            <button class="btn-small btn-info" onclick="motorBrake()">
+                                <i class="fas fa-hand-paper"></i> Brake
+                            </button>
                         </div>
-                        <div class="control-group">
-                            <label>Speed: <span id="speedValue">0</span>%</label>
-                            <input type="range" id="motorSpeed" min="0" max="100" value="0">
+                        
+                        <div style="margin-bottom: var(--spacing-md);">
+                            <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                <i class="fas fa-tachometer-alt"></i> Speed: <span id="speed-value">0</span>%
+                            </label>
+                            <input type="range" id="motor-speed" min="0" max="100" value="0"
+                                   oninput="updateMotorSpeed(this.value)"
+                                   style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-top: var(--spacing-xs);">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">0%</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">100%</span>
+                            </div>
                         </div>
-                        <div class="control-group">
-                            <button class="btn-small" onclick="accelerate()">Accelerate</button>
-                            <button class="btn-small" onclick="decelerate()">Decelerate</button>
-                            <button class="btn-small" onclick="rampUp()">Ramp Up</button>
-                            <button class="btn-small" onclick="rampDown()">Ramp Down</button>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm);">
+                            <button class="btn-small btn-secondary" onclick="setMotorSpeed(25)">
+                                25%
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="setMotorSpeed(50)">
+                                50%
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="setMotorSpeed(75)">
+                                75%
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="setMotorSpeed(100)">
+                                100%
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="rampMotorUp()">
+                                <i class="fas fa-angle-double-up"></i> Ramp Up
+                            </button>
+                            <button class="btn-small btn-secondary" onclick="rampMotorDown()">
+                                <i class="fas fa-angle-double-down"></i> Ramp Down
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Relay Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 200ms">
                     <div class="actuator-header">
-                        <h3>🔌 Relays</h3>
-                        <div class="status-indicator">CONTROL</div>
+                        <h3><i class="fas fa-plug" style="color: #4BC0C0;"></i> Relay Control</h3>
+                        <div class="status-indicator" id="relay-status">OFF</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="relay-grid">
-                            <div class="relay-item">
-                                <h4>Relay 1</h4>
-                                <div class="relay-status" id="relay1Status">OFF</div>
-                                <div class="relay-controls">
-                                    <button class="btn-toggle" onclick="toggleRelay(1)">Toggle</button>
-                                    <button class="btn-small" onclick="pulseRelay(1)">Pulse</button>
+                        <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md); background: rgba(255,255,255,0.03); border-radius: var(--radius-md);">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">Relay 1</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Main Power</div>
+                                </div>
+                                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                                    <div class="status-indicator small" id="relay1-status">OFF</div>
+                                    <button class="btn-small btn-primary" onclick="toggleRelay(1)">
+                                        <i class="fas fa-toggle-on"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="relay-item">
-                                <h4>Relay 2</h4>
-                                <div class="relay-status" id="relay2Status">OFF</div>
-                                <div class="relay-controls">
-                                    <button class="btn-toggle" onclick="toggleRelay(2)">Toggle</button>
-                                    <button class="btn-small" onclick="pulseRelay(2)">Pulse</button>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md); background: rgba(255,255,255,0.03); border-radius: var(--radius-md);">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">Relay 2</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Lighting</div>
+                                </div>
+                                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                                    <div class="status-indicator small" id="relay2-status">OFF</div>
+                                    <button class="btn-small btn-primary" onclick="toggleRelay(2)">
+                                        <i class="fas fa-toggle-on"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="relay-item">
-                                <h4>Relay 3</h4>
-                                <div class="relay-status" id="relay3Status">OFF</div>
-                                <div class="relay-controls">
-                                    <button class="btn-toggle" onclick="toggleRelay(3)">Toggle</button>
-                                    <button class="btn-small" onclick="pulseRelay(3)">Pulse</button>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md); background: rgba(255,255,255,0.03); border-radius: var(--radius-md);">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">Relay 3</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Appliances</div>
+                                </div>
+                                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                                    <div class="status-indicator small" id="relay3-status">OFF</div>
+                                    <button class="btn-small btn-primary" onclick="toggleRelay(3)">
+                                        <i class="fas fa-toggle-on"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <div class="control-group">
-                            <button class="btn-small" onclick="allRelaysOn()">All On</button>
-                            <button class="btn-small" onclick="allRelaysOff()">All Off</button>
+                        
+                        <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                            <button class="btn-small btn-success" onclick="allRelaysOn()">
+                                <i class="fas fa-check-double"></i> All On
+                            </button>
+                            <button class="btn-small btn-danger" onclick="allRelaysOff()">
+                                <i class="fas fa-times"></i> All Off
+                            </button>
+                            <button class="btn-small btn-info" onclick="cycleRelays()">
+                                <i class="fas fa-sync"></i> Cycle
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: var(--spacing-sm);">
+                            <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                Pulse Duration: <span id="pulse-duration">1000</span> ms
+                            </label>
+                            <input type="range" id="relay-pulse" min="100" max="5000" value="1000" step="100"
+                                   oninput="document.getElementById('pulse-duration').textContent = this.value"
+                                   style="width: 100%;">
                         </div>
                     </div>
                 </div>
 
                 <!-- Servo Control -->
-                <div class="actuator-card">
+                <div class="actuator-card fade-in" style="animation-delay: 250ms">
                     <div class="actuator-header">
-                        <h3>🔄 Servo</h3>
-                        <div class="status-indicator" id="servoStatus">0°</div>
+                        <h3><i class="fas fa-sliders-h" style="color: #FF9F40;"></i> Servo Control</h3>
+                        <div class="status-indicator" id="servo-status">0°</div>
                     </div>
                     <div class="actuator-controls">
-                        <div class="control-group">
-                            <label>Angle: <span id="angleValue">0</span>°</label>
-                            <input type="range" id="servoAngle" min="0" max="180" value="0">
+                        <div style="margin-bottom: var(--spacing-lg);">
+                            <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                <i class="fas fa-compass"></i> Angle: <span id="angle-value">0</span>°
+                            </label>
+                            <input type="range" id="servo-angle" min="0" max="180" value="0"
+                                   oninput="updateServoAngle(this.value)"
+                                   style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-top: var(--spacing-xs);">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">0°</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">90°</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">180°</span>
+                            </div>
                         </div>
-                        <div class="control-group">
-                            <button class="btn-small" onclick="setServoAngle(0)">0°</button>
-                            <button class="btn-small" onclick="setServoAngle(90)">90°</button>
-                            <button class="btn-small" onclick="setServoAngle(180)">180°</button>
-                            <button class="btn-small" onclick="sweepServo()">Sweep</button>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                            <button class="btn-small btn-secondary" onclick="setServoAngle(0)">0°</button>
+                            <button class="btn-small btn-secondary" onclick="setServoAngle(45)">45°</button>
+                            <button class="btn-small btn-secondary" onclick="setServoAngle(90)">90°</button>
+                            <button class="btn-small btn-secondary" onclick="setServoAngle(135)">135°</button>
+                            <button class="btn-small btn-secondary" onclick="setServoAngle(180)">180°</button>
+                            <button class="btn-small btn-primary" onclick="sweepServo()">
+                                <i class="fas fa-sync"></i> Sweep
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: var(--spacing-sm); color: var(--text-muted); font-size: 0.875rem;">
+                                <i class="fas fa-clock"></i> Sweep Speed: <span id="sweep-speed">10</span>
+                            </label>
+                            <input type="range" id="servo-speed" min="1" max="50" value="10"
+                                   oninput="document.getElementById('sweep-speed').textContent = this.value"
+                                   style="width: 100%;">
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Scene Control -->
-            <div class="scene-section">
-                <h3>🎭 Scene Control</h3>
-                <div class="scene-controls">
-                    <button class="btn-scene" onclick="executeScene('welcome')">Welcome</button>
-                    <button class="btn-scene" onclick="executeScene('alert')">Alert</button>
-                    <button class="btn-scene" onclick="executeScene('party')">Party</button>
-                    <button class="btn-scene" onclick="executeScene('calm')">Calm</button>
-                    <button class="btn-scene" onclick="executeScene('security')">Security</button>
-                    <button class="btn-scene" onclick="executeScene('custom')">Custom</button>
+            <div class="card fade-in" style="animation-delay: 300ms; margin-top: var(--spacing-xl);">
+                <div class="card-header">
+                    <h2><i class="fas fa-theater-masks"></i> Scene Control</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn-small btn-primary" onclick="saveCurrentScene()">
+                            <i class="fas fa-save"></i> Save Current
+                        </button>
+                        <button class="btn-small btn-info" onclick="loadSceneList()">
+                            <i class="fas fa-folder-open"></i> Load
+                        </button>
+                    </div>
                 </div>
-                <div class="scene-builder">
-                    <h4>Custom Scene Builder</h4>
-                    <div class="scene-form">
-                        <input type="text" id="sceneName" placeholder="Scene Name">
-                        <textarea id="sceneConfig" placeholder="Scene Configuration (JSON)"></textarea>
-                        <button class="btn-primary" onclick="saveCustomScene()">Save Custom Scene</button>
+                <div style="padding: var(--spacing-lg);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                        <button class="scene-btn" onclick="executeScene('welcome')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-hand-sparkles"></i>
+                            </div>
+                            <div style="font-weight: 600;">Welcome</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: var(--spacing-xs);">
+                                Gentle startup sequence
+                            </div>
+                        </button>
+                        
+                        <button class="scene-btn warning" onclick="executeScene('alert')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div style="font-weight: 600;">Alert</div>
+                            <div style="font-size: 0.75rem; color: var(--warning-light); margin-top: var(--spacing-xs);">
+                                Emergency notification
+                            </div>
+                        </button>
+                        
+                        <button class="scene-btn success" onclick="executeScene('party')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-glass-cheers"></i>
+                            </div>
+                            <div style="font-weight: 600;">Party</div>
+                            <div style="font-size: 0.75rem; color: var(--success-light); margin-top: var(--spacing-xs);">
+                                Colorful light show
+                            </div>
+                        </button>
+                        
+                        <button class="scene-btn info" onclick="executeScene('calm')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-spa"></i>
+                            </div>
+                            <div style="font-weight: 600;">Calm</div>
+                            <div style="font-size: 0.75rem; color: var(--info-light); margin-top: var(--spacing-xs);">
+                                Soothing ambiance
+                            </div>
+                        </button>
+                        
+                        <button class="scene-btn danger" onclick="executeScene('security')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div style="font-weight: 600;">Security</div>
+                            <div style="font-size: 0.75rem; color: var(--danger-light); margin-top: var(--spacing-xs);">
+                                Intrusion detection mode
+                            </div>
+                        </button>
+                        
+                        <button class="scene-btn secondary" onclick="executeScene('custom')">
+                            <div style="font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-magic"></i>
+                            </div>
+                            <div style="font-weight: 600;">Custom</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: var(--spacing-xs);">
+                                Load custom scene
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Status and Logs -->
-            <div class="status-section">
-                <h3>📊 Actuator Status</h3>
-                <div id="actuatorStatus" class="status-display">
-                    <!-- Status will be populated here -->
+            <!-- Actuator Log & Status -->
+            <div class="card fade-in" style="animation-delay: 350ms; margin-top: var(--spacing-xl);">
+                <div class="card-header">
+                    <h2><i class="fas fa-history"></i> Actuator Activity Log</h2>
+                    <div style="display: flex; gap: var(--spacing-sm);">
+                        <button class="btn-small btn-secondary" onclick="refreshActuatorLog()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button class="btn-small btn-danger" onclick="clearActuatorLog()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <button class="btn-small btn-success" onclick="exportActuatorLog()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
                 </div>
-                <div class="status-controls">
-                    <button id="refreshStatus" class="btn-small">Refresh Status</button>
-                    <button id="exportStatus" class="btn-small">Export Status</button>
+                <div id="actuator-log" class="log-container" style="height: 300px;">
+                    <div class="log-entry info">
+                        <span class="log-time">00:00:00</span>
+                        <span class="log-message">Actuator control system initialized</span>
+                    </div>
                 </div>
             </div>
         </main>
+
+        <!-- Status Footer -->
+        <footer style="margin-top: var(--spacing-xl); padding: var(--spacing-lg); background: var(--glass-bg); 
+                     border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                    <div id="status-indicator" class="status-indicator offline">
+                        <span id="connection-status">Disconnected</span>
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 0.875rem; color: var(--text-muted);">
+                        <span>Last Action: </span>
+                        <span id="last-action-time">--</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-cogs"></i> Active Actuators: <span id="active-count">0/6</span>
+                    </span>
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-bolt"></i> Power Mode: <span id="power-mode">Normal</span>
+                    </span>
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        <i class="fas fa-history"></i> Commands: <span id="command-count">0</span>
+                    </span>
+                </div>
+                
+                <div>
+                    <button class="btn-small btn-secondary" onclick="connectWebSocket()">
+                        <i class="fas fa-plug"></i> Reconnect
+                    </button>
+                </div>
+            </div>
+        </footer>
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
     <script>
-        $(document).ready(function() {
-            loadActuatorStatus();
-            setupEventListeners();
-            
-            // Auto-refresh status every 2 seconds
-            setInterval(loadActuatorStatus, 2000);
-        });
-
-        function setupEventListeners() {
-            // LED control
-            $('#ledToggle').click(function() {
-                toggleActuator('led');
-            });
-
-            // Buzzer controls
-            $('#buzzerToggle').click(function() {
-                toggleActuator('buzzer');
-            });
-
-            $('#buzzerFreq').on('input', function() {
-                $('#freqValue').text($(this).val());
-            });
-
-            $('#buzzerDur').on('input', function() {
-                $('#durValue').text($(this).val());
-            });
-
-            // RGB LED controls
-            $('#rgbColor').on('input', function() {
-                setRGBColor();
-            });
-
-            $('#rgbR').on('input', function() {
-                $('#rValue').text($(this).val());
-                updateRGBSliders();
-            });
-
-            $('#rgbG').on('input', function() {
-                $('#gValue').text($(this).val());
-                updateRGBSliders();
-            });
-
-            $('#rgbB').on('input', function() {
-                $('#bValue').text($(this).val());
-                updateRGBSliders();
-            });
-
-            $('#rgbBright').on('input', function() {
-                $('#brightValue').text($(this).val());
-                setRGBBrightness($(this).val());
-            });
-
-            // Motor controls
-            $('#motorSpeed').on('input', function() {
-                $('#speedValue').text($(this).val());
-                setMotorSpeed($(this).val());
-            });
-
-            // Relay controls
-            $('#relay1Toggle').click(function() { toggleRelay(1); });
-            $('#relay2Toggle').click(function() { toggleRelay(2); });
-            $('#relay3Toggle').click(function() { toggleRelay(3); });
-
-            // Scene controls
-            $('#savePreset').click(savePreset);
-            $('#loadPreset').click(loadPreset);
+        // Actuator-specific functions
+        function updateLEDBrightness(value) {
+            const percentage = Math.round((value / 255) * 100);
+            document.getElementById('led-brightness-value').textContent = percentage;
+            updateLEDBrightness(value);
         }
-
-        // Global functions for actuator control
-        window.toggleActuator = function(actuator) {
-            $.post('/api/actuators/' + actuator + '/toggle')
-                .done(function() {
-                    showMessage(actuator + ' toggled', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to toggle ' + actuator, 'error');
-                });
-        };
-
-        window.testActuator = function(actuator) {
-            $.post('/api/actuators/' + actuator + '/test')
-                .done(function() {
-                    showMessage(actuator + ' test completed', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to test ' + actuator, 'error');
-                });
-        };
-
-        window.playBeep = function() {
-            const freq = $('#buzzerFreq').val();
-            const dur = $('#buzzerDur').val();
-            $.post('/api/actuators/buzzer/beep', {
-                frequency: freq,
-                duration: dur
-            })
-            .done(function() {
-                showMessage('Beep played', 'success');
-            })
-            .fail(function() {
-                showMessage('Failed to play beep', 'error');
-            });
-        };
-
-        window.playMelody = function() {
-            $.post('/api/actuators/buzzer/melody')
-                .done(function() {
-                    showMessage('Melody played', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to play melody', 'error');
-                });
-        };
-
-        window.setRGBColor = function() {
-            const color = $('#rgbColor').val();
-            $.post('/api/actuators/rgb/color', { color: color })
-                .done(function() {
-                    showMessage('RGB color set', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to set RGB color', 'error');
-                });
-        };
-
-        window.updateRGBSliders = function() {
-            const r = $('#rgbR').val();
-            const g = $('#rgbG').val();
-            const b = $('#rgbB').val();
-            $('#rValue').text(r);
-            $('#gValue').text(g);
-            $('#bValue').text(b);
+        
+        function updateRGBSliders() {
+            const r = document.getElementById('rgb-r').value;
+            const g = document.getElementById('rgb-g').value;
+            const b = document.getElementById('rgb-b').value;
+            
+            document.getElementById('r-value').textContent = r;
+            document.getElementById('g-value').textContent = g;
+            document.getElementById('b-value').textContent = b;
             
             // Update color picker
-            const hexColor = rgbToHex(r, g, b);
-            $('#rgbColor').val(hexColor);
+            const hexColor = rgbToHex(parseInt(r), parseInt(g), parseInt(b));
+            document.getElementById('rgb-color').value = hexColor;
+        }
+        
+        function updateRGBFromPicker(hexColor) {
+            const rgb = hexToRgb(hexColor);
+            document.getElementById('rgb-r').value = rgb.r;
+            document.getElementById('rgb-g').value = rgb.g;
+            document.getElementById('rgb-b').value = rgb.b;
             
-            // Send to device
-            $.post('/api/actuators/rgb/color', { 
-                red: parseInt(r), 
-                green: parseInt(g), 
-                blue: parseInt(b) 
-            });
-        };
-
-        window.setRGBBrightness = function(brightness) {
-            $.post('/api/actuators/rgb/brightness', { brightness: brightness })
-                .done(function() {
-                    showMessage('RGB brightness set', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to set RGB brightness', 'error');
-                });
-        };
-
-        window.rainbowCycle = function() {
-            $.post('/api/actuators/rgb/rainbow')
-                .done(function() {
-                    showMessage('Rainbow cycle started', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to start rainbow cycle', 'error');
-                });
-        };
-
-        window.colorWipe = function() {
-            $.post('/api/actuators/rgb/colorwipe')
-                .done(function() {
-                    showMessage('Color wipe started', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to start color wipe', 'error');
-                });
-        };
-
-        window.theaterChase = function() {
-            $.post('/api/actuators/rgb/theater')
-                .done(function() {
-                    showMessage('Theater chase started', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to start theater chase', 'error');
-                });
-        };
-
-        window.twinkle = function() {
-            $.post('/api/actuators/rgb/twinkle')
-                .done(function() {
-                    showMessage('Twinkle started', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to start twinkle', 'error');
-                });
-        };
-
-        window.motorForward = function() {
-            $.post('/api/actuators/motor/forward')
-                .done(function() {
-                    showMessage('Motor moving forward', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to move motor forward', 'error');
-                });
-        };
-
-        window.motorReverse = function() {
-            $.post('/api/actuators/motor/reverse')
-                .done(function() {
-                    showMessage('Motor moving reverse', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to move motor reverse', 'error');
-                });
-        };
-
-        window.motorStop = function() {
-            $.post('/api/actuators/motor/stop')
-                .done(function() {
-                    showMessage('Motor stopped', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to stop motor', 'error');
-                });
-        };
-
-        window.motorBrake = function() {
-            $.post('/api/actuators/motor/brake')
-                .done(function() {
-                    showMessage('Motor braked', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to brake motor', 'error');
-                });
-        };
-
-        window.setMotorSpeed = function(speed) {
-            $.post('/api/actuators/motor/speed', { speed: speed })
-                .done(function() {
-                    showMessage('Motor speed set to ' + speed + '%', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to set motor speed', 'error');
-                });
-        };
-
-        window.accelerate = function() {
-            $.post('/api/actuators/motor/accelerate')
-                .done(function() {
-                    showMessage('Motor accelerating', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to accelerate motor', 'error');
-                });
-        };
-
-        window.decelerate = function() {
-            $.post('/api/actuators/motor/decelerate')
-                .done(function() {
-                    showMessage('Motor decelerating', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to decelerate motor', 'error');
-                });
-        };
-
-        window.rampUp = function() {
-            $.post('/api/actuators/motor/rampup')
-                .done(function() {
-                    showMessage('Motor ramping up', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to ramp up motor', 'error');
-                });
-        };
-
-        window.rampDown = function() {
-            $.post('/api/actuators/motor/rampdown')
-                .done(function() {
-                    showMessage('Motor ramping down', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to ramp down motor', 'error');
-                });
-        };
-
-        window.toggleRelay = function(relay) {
-            $.post('/api/actuators/relay/' + relay + '/toggle')
-                .done(function() {
-                    showMessage('Relay ' + relay + ' toggled', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to toggle relay ' + relay, 'error');
-                });
-        };
-
-        window.pulseRelay = function(relay) {
-            $.post('/api/actuators/relay/' + relay + '/pulse')
-                .done(function() {
-                    showMessage('Relay ' + relay + ' pulsed', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to pulse relay ' + relay, 'error');
-                });
-        };
-
-        window.allRelaysOn = function() {
-            $.post('/api/actuators/relay/all/on')
-                .done(function() {
-                    showMessage('All relays turned on', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to turn on all relays', 'error');
-                });
-        };
-
-        window.allRelaysOff = function() {
-            $.post('/api/actuators/relay/all/off')
-                .done(function() {
-                    showMessage('All relays turned off', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to turn off all relays', 'error');
-                });
-        };
-
-        window.setServoAngle = function(angle) {
-            $.post('/api/actuators/servo/angle', { angle: angle })
-                .done(function() {
-                    showMessage('Servo set to ' + angle + '°', 'success');
-                    $('#angleValue').text(angle);
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to set servo angle', 'error');
-                });
-        };
-
-        window.sweepServo = function() {
-            $.post('/api/actuators/servo/sweep')
-                .done(function() {
-                    showMessage('Servo sweeping', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to sweep servo', 'error');
-                });
-        };
-
-        window.executeScene = function(scene) {
-            $.post('/api/actuators/scenes/' + scene)
-                .done(function() {
-                    showMessage('Scene "' + scene + '" executed', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to execute scene "' + scene + '"', 'error');
-                });
-        };
-
-        // Emergency controls
-        $('#emergencyStop').click(function() {
-            if (confirm('Are you sure you want to perform an emergency stop?')) {
-                $.post('/api/actuators/emergency-stop')
-                    .done(function() {
-                        showMessage('Emergency stop activated', 'danger');
-                        loadActuatorStatus();
-                    })
-                    .fail(function() {
-                        showMessage('Failed to activate emergency stop', 'error');
-                    });
-            }
-        });
-
-        $('#allOff').click(function() {
-            $.post('/api/actuators/all/off')
-                .done(function() {
-                    showMessage('All actuators turned off', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to turn off all actuators', 'error');
-                });
-        });
-
-        $('#allOn').click(function() {
-            $.post('/api/actuators/all/on')
-                .done(function() {
-                    showMessage('All actuators turned on', 'success');
-                    loadActuatorStatus();
-                })
-                .fail(function() {
-                    showMessage('Failed to turn on all actuators', 'error');
-                });
-        });
-
-        function loadActuatorStatus() {
-            $.get('/api/actuators/status')
-                .done(function(data) {
-                    updateActuatorDisplay(data);
-                })
-                .fail(function() {
-                    showMessage('Failed to load actuator status', 'error');
-                });
+            document.getElementById('r-value').textContent = rgb.r;
+            document.getElementById('g-value').textContent = rgb.g;
+            document.getElementById('b-value').textContent = rgb.b;
         }
-
-        function updateActuatorDisplay(data) {
-            // Update LED status
-            const ledStatus = data.led ? 'ON' : 'OFF';
-            $('#ledStatus').text(ledStatus).removeClass('on off').addClass(data.led ? 'on' : 'off');
-
-            // Update Buzzer status
-            const buzzerStatus = data.buzzer ? 'ON' : 'OFF';
-            $('#buzzerStatus').text(buzzerStatus).removeClass('on off').addClass(data.buzzer ? 'on' : 'off');
-
-            // Update RGB LED status
-            const rgbStatus = data.rgb ? 'ON' : 'OFF';
-            $('#rgbStatus').text(rgbStatus).removeClass('on off').addClass(data.rgb ? 'on' : 'off');
-
-            // Update Motor status
-            const motorStatus = data.motor ? 'RUNNING' : 'STOPPED';
-            $('#motorStatus').text(motorStatus).removeClass('running stopped').addClass(data.motor ? 'running' : 'stopped');
-
-            // Update Relay statuses
-            $('#relay1Status').text(data.relays[0] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[0] ? 'on' : 'off');
-            $('#relay2Status').text(data.relays[1] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[1] ? 'on' : 'off');
-            $('#relay3Status').text(data.relays[2] ? 'ON' : 'OFF').removeClass('on off').addClass(data.relays[2] ? 'on' : 'off');
-
-            // Update Servo status
-            $('#servoStatus').text(data.servo + '°');
-
-            // Update slider values
-            $('#motorSpeed').val(data.motorSpeed || 0);
-            $('#speedValue').text(data.motorSpeed || 0);
-            
-            if (data.rgbColor) {
-                $('#rgbR').val(data.rgbColor.r || 0);
-                $('#rgbG').val(data.rgbColor.g || 0);
-                $('#rgbB').val(data.rgbColor.b || 0);
-                $('#rValue').text(data.rgbColor.r || 0);
-                $('#gValue').text(data.rgbColor.g || 0);
-                $('#bValue').text(data.rgbColor.b || 0);
-            }
-
-            $('#rgbBright').val(data.rgbBrightness || 255);
-            $('#brightValue').text(data.rgbBrightness || 255);
-
-            $('#servoAngle').val(data.servo || 0);
-            $('#angleValue').text(data.servo || 0);
-        }
-
-        function savePreset() {
-            const presetName = prompt('Enter preset name:');
-            if (presetName) {
-                $.post('/api/actuators/presets/save', { name: presetName })
-                    .done(function() {
-                        showMessage('Preset "' + presetName + '" saved', 'success');
-                    })
-                    .fail(function() {
-                        showMessage('Failed to save preset', 'error');
-                    });
-            }
-        }
-
-        function loadPreset() {
-            const presetName = prompt('Enter preset name to load:');
-            if (presetName) {
-                $.post('/api/actuators/presets/load', { name: presetName })
-                    .done(function() {
-                        showMessage('Preset "' + presetName + '" loaded', 'success');
-                        loadActuatorStatus();
-                    })
-                    .fail(function() {
-                        showMessage('Failed to load preset', 'error');
-                    });
-            }
-        }
-
-        function saveCustomScene() {
-            const sceneName = $('#sceneName').val();
-            const sceneConfig = $('#sceneConfig').val();
-            
-            if (!sceneName || !sceneConfig) {
-                showMessage('Please enter scene name and configuration', 'warning');
-                return;
-            }
-
-            try {
-                const config = JSON.parse(sceneConfig);
-                $.post('/api/actuators/scenes/custom', {
-                    name: sceneName,
-                    config: config
-                })
-                .done(function() {
-                    showMessage('Custom scene "' + sceneName + '" saved', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to save custom scene', 'error');
-                });
-            } catch (error) {
-                showMessage('Invalid JSON configuration', 'error');
-            }
-        }
-
-        function exportStatus() {
-            $.get('/api/actuators/status')
-                .done(function(status) {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(status, null, 2));
-                    const downloadAnchorNode = document.createElement('a');
-                    downloadAnchorNode.setAttribute("href", dataStr);
-                    downloadAnchorNode.setAttribute("download", "actuator_status.json");
-                    document.body.appendChild(downloadAnchorNode);
-                    downloadAnchorNode.click();
-                    downloadAnchorNode.remove();
-                    showMessage('Actuator status exported', 'success');
-                })
-                .fail(function() {
-                    showMessage('Failed to export actuator status', 'error');
-                });
-        }
-
+        
         function rgbToHex(r, g, b) {
-            return "#" + ((1 << 24) + (parseInt(r) << 16) + (parseInt(g) << 8) + parseInt(b)).toString(16).slice(1);
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         }
-
-        function showMessage(message, type) {
-            // This could be implemented with a toast notification system
-            console.log('[' + type.toUpperCase() + '] ' + message);
+        
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
         }
+        
+        function setRGBColor(r, g, b) {
+            if (r !== undefined && g !== undefined && b !== undefined) {
+                updateRGBColor(rgbToHex(r, g, b));
+            } else {
+                const hexColor = document.getElementById('rgb-color').value;
+                updateRGBColor(hexColor);
+            }
+        }
+        
+        function rgbEffect(effect) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'rgbEffect',
+                    effect: effect
+                });
+                showToast(`RGB effect: ${effect}`, 'info');
+                addActivityLog(`Started RGB effect: ${effect}`);
+            }
+        }
+        
+        function testLED() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'testActuator',
+                    actuator: 'led',
+                    duration: 1000
+                });
+                showToast('LED test initiated', 'info');
+            }
+        }
+        
+        function blinkLED() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'blinkActuator',
+                    actuator: 'led',
+                    times: 3,
+                    interval: 500
+                });
+                showToast('LED blinking', 'info');
+            }
+        }
+        
+        function playCustomTone() {
+            const freq = document.getElementById('buzzer-freq').value;
+            const duration = document.getElementById('buzzer-dur').value;
+            
+            triggerBuzzer(duration, freq);
+        }
+        
+        function playMelody(type) {
+            const melodies = {
+                'startup': { notes: [523, 659, 784], durations: [200, 200, 400] },
+                'alert': { notes: [880, 440, 880, 440], durations: [200, 200, 200, 200] },
+                'emergency': { notes: [800, 600, 800, 600], durations: [100, 100, 100, 100] }
+            };
+            
+            const melody = melodies[type];
+            if (!melody) return;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'playMelody',
+                    melody: type,
+                    notes: melody.notes,
+                    durations: melody.durations
+                });
+                showToast(`Playing ${type} melody`, 'info');
+                addActivityLog(`Played melody: ${type}`);
+            }
+        }
+        
+        function setMotorSpeed(percentage) {
+            document.getElementById('motor-speed').value = percentage;
+            document.getElementById('speed-value').textContent = percentage;
+            updateMotorSpeed(percentage);
+        }
+        
+        function rampMotorUp() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'rampMotor',
+                    direction: 'up',
+                    duration: 2000
+                });
+                showToast('Motor ramping up', 'info');
+            }
+        }
+        
+        function rampMotorDown() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'rampMotor',
+                    direction: 'down',
+                    duration: 2000
+                });
+                showToast('Motor ramping down', 'info');
+            }
+        }
+        
+        function updateServoAngle(angle) {
+            document.getElementById('angle-value').textContent = angle;
+            updateServo(1, angle);
+        }
+        
+        function setServoAngle(angle) {
+            document.getElementById('servo-angle').value = angle;
+            document.getElementById('angle-value').textContent = angle;
+            updateServo(1, angle);
+        }
+        
+        function sweepServo() {
+            const speed = document.getElementById('servo-speed').value;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'sweepServo',
+                    servo: 1,
+                    speed: speed,
+                    range: [0, 180]
+                });
+                showToast('Servo sweeping', 'info');
+                addActivityLog('Started servo sweep');
+            }
+        }
+        
+        function allRelaysOn() {
+            for (let i = 1; i <= 3; i++) {
+                toggleRelay(i, true);
+            }
+            showToast('All relays ON', 'success');
+            addActivityLog('Turned all relays ON');
+        }
+        
+        function allRelaysOff() {
+            for (let i = 1; i <= 3; i++) {
+                toggleRelay(i, false);
+            }
+            showToast('All relays OFF', 'warning');
+            addActivityLog('Turned all relays OFF');
+        }
+        
+        function cycleRelays() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'cycleRelays',
+                    interval: 500,
+                    times: 3
+                });
+                showToast('Cycling relays', 'info');
+                addActivityLog('Started relay cycle');
+            }
+        }
+        
+        function executeScene(scene) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'executeScene',
+                    scene: scene
+                });
+                showToast(`Executing ${scene} scene`, 'success');
+                addActivityLog(`Executed scene: ${scene}`);
+            }
+        }
+        
+        function saveCurrentScene() {
+            const sceneName = prompt('Enter scene name:', 'custom_scene');
+            if (!sceneName) return;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'saveScene',
+                    name: sceneName
+                });
+                showToast(`Scene saved: ${sceneName}`, 'success');
+                addActivityLog(`Saved scene: ${sceneName}`);
+            }
+        }
+        
+        function loadSceneList() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendWSMessage({
+                    type: 'getScenes'
+                });
+                showToast('Loading scenes...', 'info');
+            }
+        }
+        
+        function saveActuatorPreset() {
+            const presetName = prompt('Enter preset name:', 'actuator_preset');
+            if (!presetName) return;
+            
+            const preset = {
+                name: presetName,
+                timestamp: new Date().toISOString(),
+                led: {
+                    state: document.getElementById('led-status').textContent,
+                    brightness: document.getElementById('led-brightness').value
+                },
+                rgb: {
+                    color: document.getElementById('rgb-color').value
+                },
+                motor: {
+                    speed: document.getElementById('motor-speed').value
+                },
+                servo: {
+                    angle: document.getElementById('servo-angle').value
+                }
+            };
+            
+            localStorage.setItem(`actuator_preset_${presetName}`, JSON.stringify(preset));
+            showToast(`Preset saved: ${presetName}`, 'success');
+            addActivityLog(`Saved actuator preset: ${presetName}`);
+        }
+        
+        function loadActuatorPreset() {
+            // This would typically show a modal with saved presets
+            // For now, just show a toast
+            showToast('Preset loading dialog would appear here', 'info');
+        }
+        
+        function refreshActuatorLog() {
+            // Add a new log entry
+            const logContainer = document.getElementById('actuator-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry info';
+            logEntry.innerHTML = `
+                <span class="log-time">${new Date().toLocaleTimeString()}</span>
+                <span class="log-message">Actuator log refreshed</span>
+            `;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // Keep only last 50 entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+        
+        function clearActuatorLog() {
+            if (!confirm('Clear all actuator log entries?')) return;
+            
+            document.getElementById('actuator-log').innerHTML = `
+                <div class="log-entry info">
+                    <span class="log-time">${new Date().toLocaleTimeString()}</span>
+                    <span class="log-message">Actuator log cleared</span>
+                </div>
+            `;
+            
+            showToast('Actuator log cleared', 'info');
+            addActivityLog('Cleared actuator log');
+        }
+        
+        function exportActuatorLog() {
+            const logEntries = Array.from(document.querySelectorAll('#actuator-log .log-entry')).map(entry => ({
+                time: entry.querySelector('.log-time').textContent,
+                message: entry.querySelector('.log-message').textContent,
+                type: entry.classList.contains('error') ? 'error' : 
+                      entry.classList.contains('warning') ? 'warning' : 
+                      entry.classList.contains('info') ? 'info' : 'debug'
+            }));
+            
+            const data = {
+                timestamp: new Date().toISOString(),
+                totalEntries: logEntries.length,
+                entries: logEntries
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `actuator_log_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showToast('Actuator log exported', 'success');
+            addActivityLog('Exported actuator log');
+        }
+        
+        function allActuatorsOn() {
+            // LED
+            toggleActuator('led', true);
+            updateLEDBrightness(255);
+            
+            // RGB
+            setRGBColor(255, 255, 255);
+            
+            // Relays
+            allRelaysOn();
+            
+            showToast('All actuators ON', 'success');
+            addActivityLog('Turned all actuators ON');
+        }
+        
+        function allActuatorsOff() {
+            // LED
+            toggleActuator('led', false);
+            updateLEDBrightness(0);
+            
+            // RGB
+            setRGBColor(0, 0, 0);
+            
+            // Relays
+            allRelaysOff();
+            
+            // Motor
+            motorStop();
+            
+            // Servo
+            setServoAngle(0);
+            
+            showToast('All actuators OFF', 'warning');
+            addActivityLog('Turned all actuators OFF');
+        }
+        
+        // Initialize actuators page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateRGBSliders(); // Initialize RGB sliders
+            
+            // Initialize command counter
+            let commandCount = 0;
+            
+            // Count commands
+            document.querySelectorAll('button').forEach(button => {
+                if (button.onclick || button.getAttribute('onclick')) {
+                    button.addEventListener('click', function() {
+                        commandCount++;
+                        document.getElementById('command-count').textContent = commandCount;
+                    });
+                }
+            });
+            
+            // Update last action time
+            function updateActionTime() {
+                document.getElementById('last-action-time').textContent = new Date().toLocaleTimeString();
+            }
+            
+            // Update active actuator count
+            function updateActiveCount() {
+                const activeCount = document.querySelectorAll('.status-indicator.online').length;
+                document.getElementById('active-count').textContent = `${activeCount}/6`;
+                document.getElementById('active-actuators').textContent = activeCount;
+            }
+            
+            // Monitor status indicators
+            setInterval(updateActiveCount, 1000);
+            
+            // Initialize activity log
+            addActivityLog('Actuator control module loaded');
+            addActivityLog('All controls initialized');
+        });
     </script>
+
+    <!-- Include the main JavaScript file -->
+    <script src="script.js"></script>
 </body>
 </html>
