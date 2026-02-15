@@ -63,9 +63,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * DEVICE_TYPE is set in platformio.ini build flags:
- * - 0 = ESP32 DevKit (30-pin or 38-pin)
- * - 1 = ESP32-CAM (AI-Thinker)
+ * DEVICE_TYPE is set in platformio.ini:
+ * -D DEVICE_TYPE=0  for ESP32 DevKit
+ * -D DEVICE_TYPE=1  for ESP32-CAM
  *
  * If not defined, defaults to ESP32 DevKit
  */
@@ -139,6 +139,24 @@
 #define WEB_SERVER_PORT 80
 #define WEBSOCKET_PORT 81
 #define MAX_CLIENTS 4
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GPIOVIEWER PORT CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GPIOViewer port configuration
+ *
+ * GPIOVIEWER_PORT: Port for GPIOViewer web interface
+ * Must be different from WEB_SERVER_PORT to avoid conflicts
+ *
+ * DEFAULT: 8080 (different from main web server on port 80)
+ * ALTERNATIVES: 8081, 8082, 8888, 9000, etc.
+ *
+ * IMPORTANT: Ensure this port is not blocked by firewall
+ * and is different from any other services running on the ESP32
+ */
+#define GPIOVIEWER_PORT 8080
 
 // ═══════════════════════════════════════════════════════════════════════════
 // OTA (OVER-THE-AIR UPDATE) CONFIGURATION
@@ -223,7 +241,7 @@ extern uint8_t peerMAC[]; // Broadcast
  * DHT_TYPE options: DHT11, DHT21, DHT22 (DHT22 recommended)
  */
 #define DHT_PIN 4
-#define DHT_TYPE DHT22
+#define DHT_TYPE DHT11
 
 /**
  * HC-SR04 Ultrasonic Distance Sensor
@@ -706,6 +724,15 @@ extern uint8_t peerMAC[]; // Broadcast
 // Check ESP-NOW peer limit
 #if MAX_ESPNOW_PEERS > 6
 #warning "ESP32 supports max 6 unencrypted peers"
+#endif
+
+// Check port configuration for conflicts
+#if GPIOVIEWER_PORT == WEB_SERVER_PORT
+#error "GPIOVIEWER_PORT cannot be the same as WEB_SERVER_PORT"
+#endif
+
+#if GPIOVIEWER_PORT == OTA_PORT
+#warning "GPIOVIEWER_PORT conflicts with OTA_PORT - consider changing one"
 #endif
 
 #endif // CONFIG_H

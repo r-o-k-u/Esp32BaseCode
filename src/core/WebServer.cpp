@@ -955,6 +955,63 @@ void WebServerManager::setupRoutes()
         String status = actuatorManager.getStatus();
         request->send(200, "application/json", status); });
 
+    // Get Actuator Log
+    server->on("/api/actuators/log", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+        
+        String log = dataLogger.readLog("actuators", 100);
+        request->send(200, "text/plain", log); });
+
+    // Clear Actuator Log
+    server->on("/api/actuators/log", HTTP_DELETE, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+        dataLogger.deleteLog("actuators");
+        request->send(200, "application/json", "{\"success\":true}"); });
+
+    // Export Actuator Data
+    server->on("/api/actuators/export", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+        
+        StaticJsonDocument<2048> doc;
+        
+        // System info
+        JsonObject system = doc.createNestedObject("system");
+        system["device"] = DEVICE_NAME;
+        system["version"] = FIRMWARE_VERSION;
+        system["uptime"] = millis();
+        system["freeHeap"] = ESP.getFreeHeap();
+        system["ip"] = WiFi.localIP().toString();
+        
+        // Actuator status
+        String status = actuatorManager.getStatus();
+        StaticJsonDocument<1024> statusDoc;
+        deserializeJson(statusDoc, status);
+        doc["actuators"] = statusDoc;
+        
+        // Activity log
+        JsonArray activityLog = doc.createNestedArray("activityLog");
+        String log = dataLogger.readLog("events", 50);
+        // Parse log lines and add to array
+        int start = 0;
+        int end = log.indexOf('\n');
+        while (end != -1 && activityLog.size() < 50) {
+            String line = log.substring(start, end);
+            if (line.length() > 0) {
+                JsonObject entry = activityLog.createNestedObject();
+                entry["timestamp"] = millis();
+                entry["activity"] = line;
+            }
+            start = end + 1;
+            end = log.indexOf('\n', start);
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
+
     // Reset All Actuators
     server->on("/api/actuators/reset", HTTP_POST, [](AsyncWebServerRequest *request)
                {

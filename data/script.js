@@ -1708,6 +1708,94 @@ function exportCurrentData() {
     addActivityLog('Exported dashboard data');
 }
 
+function exportActuatorLog() {
+    const logEntries = Array.from(document.querySelectorAll('#actuator-log .log-entry')).map(entry => ({
+        time: entry.querySelector('.log-time').textContent,
+        message: entry.querySelector('.log-message').textContent,
+        type: entry.classList.contains('error') ? 'error' : 
+              entry.classList.contains('warning') ? 'warning' : 
+              entry.classList.contains('info') ? 'info' : 'debug'
+    }));
+    
+    const data = {
+        timestamp: new Date().toISOString(),
+        totalEntries: logEntries.length,
+        entries: logEntries
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `actuator_log_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    showToast('Actuator log exported', 'success');
+    addActivityLog('Exported actuator log');
+}
+
+function exportActuatorData() {
+    const actuatorData = {
+        timestamp: new Date().toISOString(),
+        system: {
+            device: document.getElementById('info-device')?.textContent || '-',
+            version: document.getElementById('info-version')?.textContent || '-',
+            uptime: document.getElementById('info-uptime')?.textContent || '-',
+            heap: document.getElementById('info-heap')?.textContent || '-',
+            wifiRSSI: document.getElementById('info-rssi')?.textContent || '-',
+            ip: document.getElementById('info-ip')?.textContent || '-'
+        },
+        actuators: {
+            led: {
+                state: document.getElementById('led-status')?.textContent || 'OFF',
+                brightness: document.getElementById('led-brightness')?.value || 0
+            },
+            buzzer: {
+                state: document.getElementById('buzzer-status')?.textContent || 'OFF',
+                frequency: document.getElementById('buzzer-freq')?.value || 0,
+                duration: document.getElementById('buzzer-dur')?.value || 0
+            },
+            rgb: {
+                status: document.getElementById('rgb-status')?.textContent || 'OFF',
+                color: document.getElementById('rgb-color')?.value || '#000000',
+                red: document.getElementById('rgb-r')?.value || 0,
+                green: document.getElementById('rgb-g')?.value || 0,
+                blue: document.getElementById('rgb-b')?.value || 0
+            },
+            motor: {
+                status: document.getElementById('motor-status')?.textContent || 'STOPPED',
+                speed: document.getElementById('motor-speed')?.value || 0
+            },
+            relays: {
+                relay1: document.getElementById('relay1-status')?.textContent || 'OFF',
+                relay2: document.getElementById('relay2-status')?.textContent || 'OFF',
+                relay3: document.getElementById('relay3-status')?.textContent || 'OFF'
+            },
+            servo: {
+                status: document.getElementById('servo-status')?.textContent || '0°',
+                angle: document.getElementById('servo-angle')?.value || 0
+            }
+        },
+        activityLog: activityLog.slice(-50) // Last 50 activities
+    };
+
+    const blob = new Blob([JSON.stringify(actuatorData, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `actuator_data_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    showToast('Actuator data exported', 'success');
+    addActivityLog('Exported actuator data');
+}
+
 function resetAllActuators() {
     if (confirm('Are you sure you want to reset all actuators to default state?')) {
         fetch('/api/actuators/reset', {method: 'POST'})

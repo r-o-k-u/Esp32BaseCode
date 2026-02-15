@@ -1,0 +1,1166 @@
+/**
+ * Fixed GPIOViewer header for ESP32 Core v3+ compatibility
+ * This is a modified version of the original GPIOViewer library
+ * to work with Arduino ESP32 core version 3 and newer
+ */
+
+#ifndef _GPIOVIEWER_FIXED_
+#define _GPIOVIEWER_FIXED_
+
+#ifndef WiFi_h
+#include <WiFi.h>
+#endif
+#ifndef ESPmDNS_h
+#include <ESPmDNS.h>
+#endif
+#ifndef _ESPAsyncWebServer_H_
+#include <ESPAsyncWebServer.h>
+#endif
+#ifndef ASYNCTCP_H_
+#include <AsyncTCP.h>
+#endif
+#ifndef INC_FREERTOS_H
+#include <freertos/FreeRTOS.h>
+#endif
+#ifndef INC_TASK_H
+#include <freertos/task.h>
+#endif
+
+#include <esp_partition.h>
+
+const char *release = "1.7.1";
+
+// Hostname for mDNS
+String mdnsHostname = "gpioviewer";
+
+// Web application assets
+const String baseURL = "https://thelastoutpostworkshop.github.io/microcontroller_devkit/gpio_viewer_1_5/";
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+#define GPIOVIEWER_ESP32CORE_VERSION_3
+#else
+#error "GPIOViewer requires Arduino ESP32 core version 3 or newer"
+#endif
+
+// Include the correct header for periman functions
+#include "esp32-hal.h"
+#include "soc/gpio_struct.h"
+#include "soc/soc_caps.h"
+#include <Esp.h>
+#include <esp_chip_info.h>
+#include <esp_system.h>
+#include <esp_idf_version.h>
+#include <esp_timer.h>
+#include <esp_heap_caps.h>
+#include <math.h>
+
+String arduinoCoreVersion = "";
+
+#ifdef GPIO_PIN_COUNT
+#define maxGPIOPins GPIO_PIN_COUNT
+#else
+#define maxGPIOPins 49
+#endif
+
+#if defined(GPIO_PIN_COUNT) && (GPIO_PIN_COUNT > 32)
+#define SUPPORT_EXTENDED_GPIO
+#endif
+
+#define sentIntervalIfNoActivity 1000L // If no activity for this interval, resend to show connection activity
+
+// Global variables to capture PMW pins
+const uint8_t maxChannels = 64;
+uint8_t ledcChannelPin[maxChannels][2];
+uint8_t ledcChannelPinCount = 0;
+uint8_t ledcChannelResolution[maxChannels][2];
+uint8_t ledcChannelResolutionCount = 0;
+
+// Global variables to pins set with PinMode
+uint8_t pinmode[maxGPIOPins][2];
+uint8_t pinModeCount = 0;
+
+#ifdef GPIOVIEWER_ESP32CORE_VERSION_3
+// Macro to trap values pass to ledcAttach functions since there is no ESP32 API
+#define ledcAttach(pin, freq, resolution)                                                                                                              \
+    (ledcChannelPinCount < maxChannels ? ledcChannelPin[ledcChannelPinCount][0] = (pin), ledcChannelPin[ledcChannelPinCount++][1] = (resolution) : 0), \
+        ledcAttach((pin), (freq), (resolution))
+#define ledcAttachChannel(pin, freq, resolution, channel)                                                                                              \
+    (ledcChannelPinCount < maxChannels ? ledcChannelPin[ledcChannelPinCount][0] = (pin), ledcChannelPin[ledcChannelPinCount++][1] = (resolution) : 0), \
+        ledcAttachChannel((pin), (freq), (resolution), (channel))
+#define IS_VERSION_3_OR_HIGHER true
+#else
+// Macro to trap values pass to ledcAttachPin since there is no ESP32 API
+#define ledcAttachPin(pin, channel)                                                                                                                 \
+    (ledcChannelPinCount < maxChannels ? ledcChannelPin[ledcChannelPinCount][0] = (pin), ledcChannelPin[ledcChannelPinCount++][1] = (channel) : 0), \
+        ledcAttachPin((pin), (channel))
+
+// Macro to trap values pass to ledcSetup since there is no ESP32 API
+#define ledcSetup(channel, freq, resolution)                                                                                                                                                  \
+    (ledcChannelResolutionCount < maxChannels ? ledcChannelResolution[ledcChannelResolutionCount][0] = (channel), ledcChannelResolution[ledcChannelResolutionCount++][1] = (resolution) : 0), \
+        ledcSetup((channel), (freq), (resolution))
+#endif
+
+// Macro to trap values pass to pinMode since there is no ESP32 API
+#define pinMode(pin, mode)                                                                                    \
+    (pinModeCount < maxGPIOPins ? pinmode[pinModeCount][0] = (pin), pinmode[pinModeCount++][1] = (mode) : 0), \
+        pinMode((pin), (mode))
+
+enum pinTypes
+{
+    digitalPin = 0,
+    PWMPin = 1,
+    analogPin = 2
+};
+
+class GPIOViewer
+{
+public:
+    GPIOViewer()
+    {
+    }
+
+    ~GPIOViewer()
+    {
+        delete events;
+        server->end();
+    }
+
+    void setPort(uint16_t port)
+    {
+        this->port = port;
+    }
+
+    void setSamplingInterval(unsigned long samplingInterval)
+    {
+        this->samplingInterval = samplingInterval;
+    }
+
+    void setSkipPeripheralPins(bool skipPeripheralPins)
+    {
+        this->skipPeripheralPins = skipPeripheralPins;
+    }
+
+    void connectToWifi(const char *ssid, const char *password)
+    {
+        WiFi.begin(ssid, password);
+        Serial.println("GPIOViewer >> Connecting to WiFi...");
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(500);
+            Serial.print(".");
+        }
+        Serial.println("GPIOViewer >> Connected to WiFi");
+    }
+
+    void begin()
+    {
+        Serial.setDebugOutput(false);
+        Serial.printf("GPIOViewer >> Release %s\n", release);
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && defined(ESP_ARDUINO_VERSION_MINOR) && defined(ESP_ARDUINO_VERSION_PATCH)
+        arduinoCoreVersion = String(ESP_ARDUINO_VERSION_MAJOR) + "." + String(ESP_ARDUINO_VERSION_MINOR) + "." + String(ESP_ARDUINO_VERSION_PATCH);
+        Serial.printf("GPIOViewer >> ESP32 Core Version %s\n", arduinoCoreVersion.c_str());
+#ifdef GPIOVIEWER_ESP32CORE_NOTSUPPORTED
+        Serial.printf("GPIOViewer >> Your ESP32 Core Version is not supported, update your ESP32 boards to the latest version\n");
+        return;
+#endif
+#endif
+        Serial.printf("GPIOViewer >> Chip Model:%s, revision:%d\n", ESP.getChipModel(), ESP.getChipRevision());
+        if (psramFound())
+        {
+            psramSize = ESP.getPsramSize();
+            Serial.printf("GPIOViewer >> PSRAM Size %s\n", formatBytes(psramSize).c_str());
+        }
+        else
+        {
+            Serial.printf("GPIOViewer >> No PSRAM\n");
+        }
+
+#if defined(SOC_ADC_SUPPORTED) && defined(GPIOVIEWER_ESP32CORE_VERSION_3)
+        readADCPinsConfiguration();
+#endif
+#if defined(SOC_TOUCH_SENSOR_NUM) && defined(GPIOVIEWER_ESP32CORE_VERSION_3)
+#if SOC_TOUCH_SENSOR_NUM > 0
+        readTouchPinsConfiguration();
+#endif
+#endif
+
+        if (checkWifiStatus())
+        {
+            // printPWNTraps();
+            server = new AsyncWebServer(port);
+
+            // Set CORS headers for global responses
+            DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+            DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+
+            // Initialize and set up the AsyncEventSource
+            events = new AsyncEventSource("/events");
+            events->onConnect([this](AsyncEventSourceClient *client)
+                              { this->resetStatePins(); });
+
+            server->addHandler(events);
+
+            server->on("/", [this](AsyncWebServerRequest *request)
+                       { request->send(200, "text/html", generateIndexHTML().c_str()); });
+
+            server->on("/release", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendMinReleaseVersion(request); });
+
+            server->on("/free_psram", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendFreePSRAM(request); });
+
+            server->on("/sampling", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendSamplingInterval(request); });
+            server->on("/espinfo", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendESPInfo(request); });
+            server->on("/partition", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendESPPartition(request); });
+            server->on("/pinmodes", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendPinModes(request); });
+
+#ifndef NO_PIN_FUNCTIONS
+            server->on("/pinfunctions", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       { sendPinFunctions(request); });
+#endif
+
+            server->begin();
+
+            // Initialize mDNS ...
+            bool mdnsStarted = MDNS.begin(mdnsHostname.c_str());
+            if (mdnsStarted)
+            {
+                // ... and Advertise the GPIOViewer service details
+                MDNS.addService("http", "tcp", this->port);
+                Serial.printf("GPIOViewer >> Web Application mDNS URL is: http://%s.local:%u\n", mdnsHostname.c_str(), port);
+            }
+            else
+            {
+                Serial.println("GPIOViewer >> mDNS unavailable; use the IP address URL instead.");
+            }
+
+            // Print out GPIOViewer service details
+            Serial.print("GPIOViewer >> Web Application URL is: http://");
+            Serial.print(WiFi.localIP());
+            Serial.print(":");
+            Serial.println(port);
+
+            // Create a task for monitoring GPIOs
+            xTaskCreate(&GPIOViewer::monitorTaskStatic, "GPIO Monitor Task", 4096, this, 1, NULL);
+        }
+    }
+
+    static void monitorTaskStatic(void *pvParameter)
+    {
+        static_cast<GPIOViewer *>(pvParameter)->monitorTask();
+    }
+
+private:
+    uint32_t lastPinStates[maxGPIOPins];
+    uint16_t port = 8080;
+    unsigned long samplingInterval = 100;
+    unsigned long lastSentWithNoActivity = millis();
+    AsyncWebServer *server;
+    AsyncEventSource *events;
+    uint32_t freeHeap = 0;
+    uint32_t freePSRAM = 0;
+    uint32_t psramSize = 0;
+    uint8_t ADCPins[maxGPIOPins];
+    uint8_t ADCPinsCount = 0;
+    uint8_t TouchPins[maxGPIOPins];
+    uint8_t TouchPinsCount = 0;
+    bool skipPeripheralPins = true;
+    String freeRAM = formatBytes(ESP.getFreeSketchSpace());
+
+    void sendESPPartition(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "["; // Start of JSON array
+        bool firstEntry = true;    // Used to format the JSON array correctly
+
+        auto appendPartitions = [&](esp_partition_type_t type)
+        {
+            esp_partition_iterator_t iter = esp_partition_find(type, ESP_PARTITION_SUBTYPE_ANY, NULL);
+
+            while (iter != NULL)
+            {
+                const esp_partition_t *partition = esp_partition_get(iter);
+
+                if (!firstEntry)
+                {
+                    jsonResponse += ",";
+                }
+                firstEntry = false;
+
+                // Append partition information in JSON format
+                jsonResponse += "{";
+                jsonResponse += "\"label\":\"" + String(partition->label) + "\",";
+                jsonResponse += "\"type\":" + String(partition->type) + ",";
+                jsonResponse += "\"subtype\":" + String(partition->subtype) + ",";
+                jsonResponse += "\"address\":\"0x" + String(partition->address, HEX) + "\",";
+                jsonResponse += "\"size\":" + String(partition->size);
+                jsonResponse += "}";
+
+                iter = esp_partition_next(iter); // Move to next partition
+            }
+
+            esp_partition_iterator_release(iter); // Clean up iterator
+        };
+
+        appendPartitions(ESP_PARTITION_TYPE_DATA);
+        appendPartitions(ESP_PARTITION_TYPE_APP);
+
+        jsonResponse += "]"; // End of JSON array
+
+        request->send(200, "application/json", jsonResponse);
+    }
+
+    void sendPinModes(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "["; // Start of JSON array
+        bool firstEntry = true;    // Used to format the JSON array correctly
+
+        for (int i = 0; i < pinModeCount; i++)
+        {
+            if (!firstEntry)
+            {
+                jsonResponse += ",";
+            }
+            firstEntry = false;
+            jsonResponse += "{";
+            jsonResponse += "\"pin\":\"" + String(pinmode[i][0]) + "\",";
+            jsonResponse += "\"mode\":\"" + String(pinmode[i][1]) + "\"";
+            jsonResponse += "}";
+        }
+
+        jsonResponse += "]"; // End of JSON array
+
+        request->send(200, "application/json", jsonResponse);
+    }
+
+    void sendESPInfo(AsyncWebServerRequest *request)
+    {
+        const FlashMode_t flashMode = ESP.getFlashChipMode();
+        const char *flashModeText = flashModeToString(flashMode);
+
+        esp_chip_info_t chipInfo;
+        esp_chip_info(&chipInfo);
+
+        String chipFeatures = "[";
+        bool firstFeature = true;
+        auto appendFeature = [&](const char *name)
+        {
+            if (!firstFeature)
+            {
+                chipFeatures += ",";
+            }
+            firstFeature = false;
+            chipFeatures += "\"";
+            chipFeatures += name;
+            chipFeatures += "\"";
+        };
+
+        if (chipInfo.features & CHIP_FEATURE_WIFI_BGN)
+        {
+            appendFeature("WIFI_BGN");
+        }
+        if (chipInfo.features & CHIP_FEATURE_BLE)
+        {
+            appendFeature("BLE");
+        }
+        if (chipInfo.features & CHIP_FEATURE_BT)
+        {
+            appendFeature("BT");
+        }
+        if (chipInfo.features & CHIP_FEATURE_EMB_FLASH)
+        {
+            appendFeature("EMB_FLASH");
+        }
+        if (chipInfo.features & CHIP_FEATURE_IEEE802154)
+        {
+            appendFeature("IEEE802154");
+        }
+        if (chipInfo.features & CHIP_FEATURE_EMB_PSRAM)
+        {
+            appendFeature("EMB_PSRAM");
+        }
+        chipFeatures += "]";
+
+        String idfVersion = "unknown";
+#if ESP_IDF_VERSION_MAJOR >= 4
+        idfVersion = String(esp_get_idf_version());
+#endif
+
+        const String sdkVersion = String(ESP.getSdkVersion());
+        const String sketchMD5 = ESP.getSketchMD5();
+
+        const uint64_t uptimeUs = static_cast<uint64_t>(esp_timer_get_time());
+        const esp_reset_reason_t resetReason = esp_reset_reason();
+        const char *resetReasonText = resetReasonToString(resetReason);
+
+        const size_t heapFree8bit = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+        const size_t heapFree32bit = heap_caps_get_free_size(MALLOC_CAP_32BIT);
+        const size_t heapLargestBlock = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+
+        float temperatureC = NAN;
+#if defined(CONFIG_IDF_TARGET_ESP32) || (defined(SOC_TEMP_SENSOR_SUPPORTED) && SOC_TEMP_SENSOR_SUPPORTED)
+        temperatureC = temperatureRead();
+#endif
+
+        String jsonResponse = "{";
+        auto appendField = [&](const char *key, const String &value, bool quoted)
+        {
+            if (jsonResponse.length() > 1)
+            {
+                jsonResponse += ",";
+            }
+            jsonResponse += "\"";
+            jsonResponse += key;
+            jsonResponse += "\":";
+            if (quoted)
+            {
+                jsonResponse += "\"";
+            }
+            jsonResponse += value;
+            if (quoted)
+            {
+                jsonResponse += "\"";
+            }
+        };
+        auto appendRawField = [&](const char *key, const String &value)
+        {
+            if (jsonResponse.length() > 1)
+            {
+                jsonResponse += ",";
+            }
+            jsonResponse += "\"";
+            jsonResponse += key;
+            jsonResponse += "\":";
+            jsonResponse += value;
+        };
+
+        appendField("chip_model", String(ESP.getChipModel()), true);
+        appendField("cores_count", String(ESP.getChipCores()), true);
+        appendField("chip_revision", String(ESP.getChipRevision()), true);
+        appendField("cpu_frequency", String(ESP.getCpuFreqMHz()), true);
+        appendField("cycle_count", String(static_cast<unsigned long long>(ESP.getCycleCount())), false);
+        appendField("mac", String(ESP.getEfuseMac()), true);
+        appendField("flash_mode", String(flashModeText), true);
+        appendField("flash_chip_size", String(ESP.getFlashChipSize()), false);
+        appendField("flash_chip_speed", String(ESP.getFlashChipSpeed()), false);
+        appendField("heap_size", String(ESP.getHeapSize()), false);
+        appendField("heap_max_alloc", String(ESP.getMaxAllocHeap()), false);
+        appendField("psram_size", String(ESP.getPsramSize()), false);
+        appendField("free_psram", String(ESP.getFreePsram()), false);
+        appendField("psram_max_alloc", String(ESP.getMaxAllocPsram()), false);
+        appendField("free_heap", String(ESP.getFreeHeap()), false);
+        appendField("heap_free_8bit", String(heapFree8bit), false);
+        appendField("heap_free_32bit", String(heapFree32bit), false);
+        appendField("heap_largest_free_block", String(heapLargestBlock), false);
+        appendField("up_time", String(millis()), true);
+        appendField("uptime_us", String(static_cast<unsigned long long>(uptimeUs)), false);
+        appendField("sketch_size", String(ESP.getSketchSize()), false);
+        appendField("free_sketch", String(ESP.getFreeSketchSpace()), false);
+        appendField("arduino_core_version", arduinoCoreVersion, true);
+        appendField("sdk_version", sdkVersion, true);
+#if ESP_IDF_VERSION_MAJOR >= 4
+        appendField("idf_version", idfVersion, true);
+#endif
+        if (sketchMD5.length() > 0)
+        {
+            appendField("sketch_md5", sketchMD5, true);
+        }
+        appendRawField("chip_features", chipFeatures);
+        appendField("reset_reason_code", String(static_cast<int>(resetReason)), false);
+        appendField("reset_reason", String(resetReasonText), true);
+        if (!isnan(temperatureC))
+        {
+            appendField("temperature_c", String(temperatureC, 2), false);
+        }
+
+        jsonResponse += "}";
+        request->send(200, "application/json", jsonResponse);
+    }
+
+    void sendSamplingInterval(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "{\"sampling\": \"" + String(samplingInterval) + "\"}";
+
+        request->send(200, "application/json", jsonResponse);
+    }
+    void sendMinReleaseVersion(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "{\"release\": \"" + String(release) + "\"}";
+
+        request->send(200, "application/json", jsonResponse);
+    }
+    void sendFreePSRAM(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "{\"sampling\": \"" + String(samplingInterval) + "\"}";
+        if (psramFound())
+        {
+            jsonResponse += formatBytes(ESP.getFreePsram()) + "\"}";
+        }
+        else
+        {
+            jsonResponse += "No PSRAM\"}";
+        }
+
+        request->send(200, "application/json", jsonResponse);
+    }
+    bool checkWifiStatus(void)
+    {
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            return true;
+        }
+        else
+        {
+            wifi_mode_t mode = WiFi.getMode();
+
+            switch (mode)
+            {
+            case WIFI_OFF:
+                Serial.println("GPIOViewer >> WiFi Mode: OFF");
+                break;
+            case WIFI_STA:
+                Serial.println("GPIOViewer >> WiFi Mode: Station (STA)");
+                break;
+            case WIFI_AP:
+                Serial.println("GPIOViewer >> WiFi Mode: Access Point (AP) is not supported");
+                break;
+            case WIFI_AP_STA:
+                Serial.println("GPIOViewer >> WiFi Mode: Access Point and Station (AP_STA) is not supported");
+                break;
+            default:
+                Serial.println("GPIOViewer >> WiFi Mode: Unknown, cannot run the wep application");
+            }
+            Serial.println("GPIOViewer >> ESP32 is not connected to WiFi.");
+        }
+        return false;
+    }
+
+    static const char *resetReasonToString(esp_reset_reason_t reason)
+    {
+        switch (reason)
+        {
+        case ESP_RST_UNKNOWN:
+            return "UNKNOWN";
+        case ESP_RST_POWERON:
+            return "POWERON";
+        case ESP_RST_EXT:
+            return "EXT";
+        case ESP_RST_SW:
+            return "SW";
+        case ESP_RST_PANIC:
+            return "PANIC";
+        case ESP_RST_INT_WDT:
+            return "INT_WDT";
+        case ESP_RST_TASK_WDT:
+            return "TASK_WDT";
+        case ESP_RST_WDT:
+            return "WDT";
+        case ESP_RST_DEEPSLEEP:
+            return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT:
+            return "BROWNOUT";
+        case ESP_RST_SDIO:
+            return "SDIO";
+#ifdef ESP_RST_USB
+        case ESP_RST_USB:
+            return "USB";
+#endif
+#ifdef ESP_RST_JTAG
+        case ESP_RST_JTAG:
+            return "JTAG";
+#endif
+#ifdef ESP_RST_EFUSE
+        case ESP_RST_EFUSE:
+            return "EFUSE";
+#endif
+#ifdef ESP_RST_RTC_WDT
+        case ESP_RST_RTC_WDT:
+            return "RTC_WDT";
+#endif
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+    static const char *flashModeToString(FlashMode_t mode)
+    {
+        switch (mode)
+        {
+        case FM_QIO:
+            return "QIO";
+        case FM_QOUT:
+            return "QOUT";
+        case FM_DIO:
+            return "DIO";
+        case FM_DOUT:
+            return "DOUT";
+        case FM_FAST_READ:
+            return "FAST_READ";
+        case FM_SLOW_READ:
+            return "SLOW_READ";
+        case FM_UNKNOWN:
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+    void printPWNTraps()
+    {
+        Serial.printf("GPIOViewer >> %d pins are PWM\n", ledcChannelPinCount);
+        for (int i = 0; i < ledcChannelPinCount; i++)
+        {
+            Serial.printf("GPIOViewer >> Pin %d is using channel %d\n", ledcChannelPin[i][0], ledcChannelPin[i][1]);
+        }
+        Serial.printf("GPIOViewer >> %d channels are used\n", ledcChannelResolutionCount);
+        for (int i = 0; i < ledcChannelResolutionCount; i++)
+        {
+            Serial.printf("GPIOViewer >> Channel %d resolution is %d bits\n", ledcChannelResolution[i][0], ledcChannelResolution[i][1]);
+        }
+        Serial.printf("GPIOViewer >> %d pins have PinMode\n", pinModeCount);
+        for (int i = 0; i < pinModeCount; i++)
+        {
+            Serial.printf("GPIOViewer >> Pin %d is using mode %d\n", pinmode[i][0], pinmode[i][1]);
+        }
+    }
+
+    String generateIndexHTML()
+    {
+        String html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>";
+        html += "<base href ='" + baseURL + "'>";
+        html += "<link rel='icon' href='favicon.ico'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>GPIOViewer</title>";
+        html += "<script type='module' crossorigin src='GPIOViewerVue.js'></script>";
+        html += "<link rel='stylesheet' crossorigin href='assets/main.css'></head><body><div id='app'></div>";
+
+        html += "<script>";
+        html += "window.gpio_settings = {";
+        html += "ip:'" + WiFi.localIP().toString() + "',";
+        html += "port:'" + String(port) + "',";
+        html += "freeSketchRam:'" + freeRAM + "'";
+        html += "};";
+        html += "</script>";
+
+        html += "</body></html>";
+        return html;
+    }
+
+    void resetStatePins(void)
+    {
+        uint32_t originalValue;
+        pinTypes pintype;
+        Serial.printf("GPIOViewer >> Connected, sampling interval is %lums\n", samplingInterval);
+
+        for (int i = 0; i < maxGPIOPins; i++)
+        {
+            lastPinStates[i] = readGPIO(i, &originalValue, &pintype);
+        }
+    }
+
+    // Check GPIO values
+    bool checkGPIOValues()
+    {
+        uint32_t originalValue;
+        pinTypes pintype;
+
+        String jsonMessage = "{";
+        bool hasChanges = false;
+
+        for (int i = 0; i < maxGPIOPins; i++)
+        {
+            int currentState = readGPIO(i, &originalValue, &pintype);
+
+            if (originalValue != lastPinStates[i])
+            {
+                if (hasChanges)
+                {
+                    jsonMessage += ", ";
+                }
+                jsonMessage += "\"" + String(i) + "\": {\"s\": " + currentState + ", \"v\": " + originalValue + ", \"t\": " + pintype + "}";
+                lastPinStates[i] = originalValue;
+                hasChanges = true;
+            }
+        }
+
+        jsonMessage += "}";
+
+        if (hasChanges)
+        {
+            sendGPIOStates(jsonMessage);
+        }
+        return hasChanges;
+    }
+
+    bool checkFreeHeap()
+    {
+        uint32_t heap = esp_get_free_heap_size();
+        if (heap != freeHeap)
+        {
+            freeHeap = heap;
+            events->send(formatBytes(freeHeap).c_str(), "free_heap", millis());
+            return true;
+        }
+        return false;
+    }
+
+    bool checkFreePSRAM()
+    {
+        if (psramFound())
+        {
+            uint32_t psram = ESP.getFreePsram();
+            if (psram != freePSRAM)
+            {
+                freePSRAM = psram;
+                events->send(formatBytes(freePSRAM).c_str(), "free_psram", millis());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Monitor Task
+    void monitorTask()
+    {
+        while (1)
+        {
+            bool changes = false;
+            changes = checkGPIOValues();
+            changes |= checkFreeHeap();
+            changes |= checkFreePSRAM();
+
+            if (!changes)
+            {
+                unsigned long delay = millis() - lastSentWithNoActivity;
+                if (delay > sentIntervalIfNoActivity)
+                {
+                    // No activity, resending for pulse
+                    events->send(formatBytes(freeHeap).c_str(), "free_heap", millis());
+                    lastSentWithNoActivity = millis();
+                }
+            }
+            else
+            {
+                lastSentWithNoActivity = millis();
+            }
+            vTaskDelay(pdMS_TO_TICKS(samplingInterval));
+        }
+    }
+
+    int getLedcChannelForPin(int pin)
+    {
+        for (int i = 0; i < ledcChannelPinCount; i++)
+        {
+            if (ledcChannelPin[i][0] == pin)
+            {
+                return ledcChannelPin[i][1];
+            }
+        }
+        return -1; // Pin not found, return -1 to indicate no channel is associated
+    }
+
+#ifdef GPIOVIEWER_ESP32CORE_VERSION_3
+    int mapLedcReadTo8Bit(int gpioNum, int channel, uint32_t *originalValue)
+    {
+        ledc_channel_handle_t *bus = (ledc_channel_handle_t *)perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_LEDC);
+        if (bus != NULL)
+        {
+            uint8_t resolution;
+            resolution = bus->channel_resolution;
+            uint32_t maxDutyCycle = (1 << resolution) - 1;
+            *originalValue = ledcRead(gpioNum);
+            return map(*originalValue, 0, maxDutyCycle, 0, 255);
+        }
+        return 0;
+    }
+    bool isPinPMW(int gpioNum)
+    {
+        for (int i = 0; i < ledcChannelPinCount; i++)
+        {
+            if (ledcChannelPin[i][0] == gpioNum)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    bool isPinModeSet(int gpioNum)
+    {
+        for (int i = 0; i < pinModeCount; i++)
+        {
+            if (pinmode[i][0] == gpioNum)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool isPinOnPeripheralBus(int gpioNum)
+    {
+        // Skip pins owned by active peripherals to avoid interfering reads.
+#ifdef ESP32_BUS_TYPE_I2C_MASTER_SDA
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_I2C_MASTER_SDA) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_I2C_MASTER_SCL
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_I2C_MASTER_SCL) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_I2C_SLAVE_SDA
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_I2C_SLAVE_SDA) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_I2C_SLAVE_SCL
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_I2C_SLAVE_SCL) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_MASTER_SCK
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_MASTER_SCK) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_MASTER_MISO
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_MASTER_MISO) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_MASTER_MOSI
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_MASTER_MOSI) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_MASTER_SS
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_MASTER_SS) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_SLAVE_SCK
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_SLAVE_SCK) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_SLAVE_MISO
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_SLAVE_MISO) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_SLAVE_MOSI
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_SLAVE_MOSI) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_SPI_SLAVE_SS
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_SPI_SLAVE_SS) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_UART_RX
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_UART_RX) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_UART_TX
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_UART_TX) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_UART_RTS
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_UART_RTS) != NULL)
+        {
+            return true;
+        }
+#endif
+#ifdef ESP32_BUS_TYPE_UART_CTS
+        if (perimanGetPinBus(gpioNum, ESP32_BUS_TYPE_UART_CTS) != NULL)
+        {
+            return true;
+        }
+#endif
+        return false;
+    }
+#ifdef SOC_ADC_SUPPORTED
+    void
+    readADCPinsConfiguration(void)
+    {
+        // Serial.println("GPIOViewer >> ADC Supported");
+        // Serial.printf("GPIOViewer >> %d ADC available, %d channels each \n", SOC_ADC_PERIPH_NUM, SOC_ADC_MAX_CHANNEL_NUM);
+        int8_t channel;
+        for (int i = 0; i < GPIO_PIN_COUNT; i++)
+        {
+            if (!GPIO_IS_VALID_GPIO(i))
+            {
+                continue;
+            }
+#ifdef CONFIG_IDF_TARGET_ESP32C3
+            if (i == 5)
+            {
+                // Pin 5 on ESP32C3 appears not supported for ADC
+                continue;
+            }
+#endif
+            channel = digitalPinToAnalogChannel(i);
+            if (channel != -1)
+            {
+#ifdef SUPPORT_EXTENDED_GPIO
+                if (i >= 32)
+                {
+                    // Check the extended bank using enable1
+                    if (GPIO.enable1.val & (1 << (i - 32)))
+                    {
+                        // Pin is configured as OUTPUT (e.g., SPI may have taken over), skip it
+                        continue;
+                    }
+                }
+                else
+                {
+                    // For pins 0-31, check the base register
+                    if (GPIO.enable1.val & (1 << i))
+                    {
+                        continue;
+                    }
+                }
+#else
+                if (GPIO.enable.val & (1 << i))
+                {
+                    // If GPIO has been configured as OUTPUT (for example by SPI), we cannot read it
+                    continue;
+                }
+#endif
+                // This ADC pin can be safely read
+                ADCPins[ADCPinsCount] = i;
+                ADCPinsCount++;
+            }
+        }
+        // Serial.printf("GPIOViewer >> %d pins support ADC on your board\n", ADCPinsCount);
+    }
+    bool isPinInADCPins(int gpioNum)
+    {
+        for (int i = 0; i < ADCPinsCount; i++)
+        {
+            if (ADCPins[i] == gpioNum)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    uint32_t readADCPin(int gpioNum)
+    {
+        if (isPinInADCPins(gpioNum) && !(isPinPMW(gpioNum) || isPinModeSet(gpioNum)))
+        {
+
+            uint32_t analogValue = analogRead(gpioNum);
+            return analogValue;
+        }
+        return 0;
+    }
+#endif
+
+#ifdef SOC_TOUCH_SENSOR_NUM
+    void readTouchPinsConfiguration(void)
+    {
+        // Serial.println("GPIOViewer >> Touch Supported");
+        int8_t channel;
+        for (int i = 0; i < GPIO_PIN_COUNT; i++)
+        {
+            channel = digitalPinToTouchChannel(i);
+            if (channel != -1)
+            {
+                TouchPins[TouchPinsCount] = i;
+                TouchPinsCount++;
+            }
+        }
+        // Serial.printf("GPIOViewer >> %d pins support Touch on your board\n", TouchPinsCount);
+    }
+#endif
+
+    int readGPIO(int gpioNum, uint32_t *originalValue, pinTypes *pintype)
+    {
+        int value;
+        int channel = getLedcChannelForPin(gpioNum);
+        if (channel != -1)
+        {
+            // This is an explicitely defined PWM Pin
+            value = mapLedcReadTo8Bit(gpioNum, channel, originalValue);
+            *pintype = PWMPin;
+            return value;
+        }
+
+        uint32_t ledc_value = ledcRead(gpioNum);
+        if (ledc_value != 0)
+        {
+            // This is an implicit PWM Pin (direct analogWrite call without explicit ledcAttach)
+            value = mapLedcReadTo8Bit(gpioNum, 0, originalValue);
+            *pintype = PWMPin;
+
+            return ledc_value;
+        }
+
+        if (skipPeripheralPins && isPinOnPeripheralBus(gpioNum))
+        {
+            *pintype = digitalPin;
+            *originalValue = 0;
+            return 0;
+        }
+
+#ifdef SOC_ADC_SUPPORTED
+        uint32_t analog_value = readADCPin(gpioNum);
+        if (analog_value != 0)
+        {
+            *originalValue = analog_value;
+            *pintype = analogPin;
+            // Map value using the default resolution of 12 bits
+            value = map(analog_value, 0, 4095, 0, 255);
+            return value;
+        }
+#endif
+
+        // Assume this is a digital pin
+        *pintype = digitalPin;
+        value = digitalRead(gpioNum);
+        *originalValue = value;
+        if (value == 1)
+        {
+            return 256;
+        }
+        return 0;
+    }
+#else
+    int mapLedcReadTo8Bit(int gpioNum, int channel, uint32_t *originalValue)
+    {
+        uint8_t resolution;
+        resolution = channels_resolution[channel];
+        if (resolution > 0)
+        {
+            uint32_t maxDutyCycle = (1 << channels_resolution[channel]) - 1;
+            // Serial.printf("channel=%d,maxDutyCycle=%ld, channel resolution=%d\n", channel, maxDutyCycle, channels_resolution[channel]);
+            *originalValue = ledcRead(channel);
+            // Serial.printf("originalValue = %ld\n", *originalValue);
+            return map(*originalValue, 0, maxDutyCycle, 0, 255);
+        }
+        return 0;
+    }
+    int readGPIO(int gpioNum, uint32_t *originalValue, pinTypes *pintype)
+    {
+        int channel = getLedcChannelForPin(gpioNum);
+        int value;
+        if (channel != -1)
+        {
+            // This is a PWM Pin
+            value = mapLedcReadTo8Bit(gpioNum, channel, originalValue);
+            *pintype = PWMPin;
+            return value;
+        }
+        uint8_t analogChannel = analogGetChannel(gpioNum);
+        if (analogChannel != 0 && analogChannel != 255)
+        {
+            value = mapLedcReadTo8Bit(gpioNum, analogChannel, originalValue);
+            *pintype = analogPin;
+            return value;
+        }
+        else
+        {
+            // This is a digital pin
+            *pintype = digitalPin;
+            value = digitalRead(gpioNum);
+            *originalValue = value;
+            if (value == 1)
+            {
+                return 256;
+            }
+            return 0;
+        }
+    }
+#endif
+
+    void sendGPIOStates(const String &states)
+    {
+        events->send(states.c_str(), "gpio-state", millis());
+    }
+
+    String formatBytes(size_t bytes)
+    {
+        if (bytes < 1024)
+        {
+            return String(bytes) + " B";
+        }
+        else if (bytes < (1024 * 1024))
+        {
+            return String(bytes / 1024.0, 2) + " KB";
+        }
+        else
+        {
+            return String(bytes / 1024.0 / 1024.0, 2) + " MB";
+        }
+    }
+
+#ifndef NO_PIN_FUNCTIONS
+    void sendPinFunctions(AsyncWebServerRequest *request)
+    {
+        String jsonResponse = "{\"boardpinsfunction\":[";
+
+        // ADC pins
+        startPinFunction("ADC", &jsonResponse);
+        for (int i = 0; i < ADCPinsCount; i++)
+        {
+            addPinFunction("ADC", ADCPins[i], &jsonResponse);
+        }
+        endPinFunction(&jsonResponse);
+
+        // Touch pins
+        jsonResponse += ",";
+        startPinFunction("Touch", &jsonResponse);
+        for (int i = 0; i < TouchPinsCount; i++)
+        {
+            addPinFunction("Touch", TouchPins[i], &jsonResponse);
+        }
+        endPinFunction(&jsonResponse);
+
+        jsonResponse += "]}";
+
+        request->send(200, "application/json", jsonResponse);
+    }
+
+    void startPinFunction(const char *pinFunction, String *json)
+    {
+        *json += "{\"name\":\"" + String(pinFunction) + "\", \"functions\":[";
+    }
+
+    void addPinFunction(const char *pinName, int pin, String *json)
+    {
+        if (!json->endsWith("["))
+        {
+            *json += ",";
+        }
+
+        *json += "{\"function\":\"" + String(pinName) + "\",\"pin\":" + String(pin) + "}";
+    }
+
+    void endPinFunction(String *json)
+    {
+        *json += "]}";
+    }
+#endif
+};
+
+#endif // _GPIOVIEWER_FIXED_

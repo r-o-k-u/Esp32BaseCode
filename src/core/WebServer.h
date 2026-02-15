@@ -18,8 +18,8 @@
 #include <SPIFFS.h>
 #include "DataLogger.h"
 
-// Configuration
-#define MAX_CLIENTS 10
+// Configuration - Use config.h value
+// #define MAX_CLIENTS 10  // Commented out to use config.h value
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "ESP32-Device"
 #endif
