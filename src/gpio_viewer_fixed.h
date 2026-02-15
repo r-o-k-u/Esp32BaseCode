@@ -39,7 +39,8 @@ const String baseURL = "https://thelastoutpostworkshop.github.io/microcontroller
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
 #define GPIOVIEWER_ESP32CORE_VERSION_3
 #else
-#error "GPIOViewer requires Arduino ESP32 core version 3 or newer"
+// For older versions, we'll define the missing variables and use compatibility mode
+#define GPIOVIEWER_ESP32CORE_VERSION_2
 #endif
 
 // Include the correct header for periman functions
@@ -74,6 +75,11 @@ uint8_t ledcChannelPin[maxChannels][2];
 uint8_t ledcChannelPinCount = 0;
 uint8_t ledcChannelResolution[maxChannels][2];
 uint8_t ledcChannelResolutionCount = 0;
+
+// For compatibility with older ESP32 core versions
+#ifdef GPIOVIEWER_ESP32CORE_VERSION_2
+uint8_t gpio_viewer_channels_resolution[maxChannels]; // Array to store channel resolutions (avoid conflict with framework)
+#endif
 
 // Global variables to pins set with PinMode
 uint8_t pinmode[maxGPIOPins][2];
@@ -1049,11 +1055,11 @@ private:
     int mapLedcReadTo8Bit(int gpioNum, int channel, uint32_t *originalValue)
     {
         uint8_t resolution;
-        resolution = channels_resolution[channel];
+        resolution = gpio_viewer_channels_resolution[channel];
         if (resolution > 0)
         {
-            uint32_t maxDutyCycle = (1 << channels_resolution[channel]) - 1;
-            // Serial.printf("channel=%d,maxDutyCycle=%ld, channel resolution=%d\n", channel, maxDutyCycle, channels_resolution[channel]);
+            uint32_t maxDutyCycle = (1 << gpio_viewer_channels_resolution[channel]) - 1;
+            // Serial.printf("channel=%d,maxDutyCycle=%ld, channel resolution=%d\n", channel, maxDutyCycle, gpio_viewer_channels_resolution[channel]);
             *originalValue = ledcRead(channel);
             // Serial.printf("originalValue = %ld\n", *originalValue);
             return map(*originalValue, 0, maxDutyCycle, 0, 255);

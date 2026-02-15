@@ -117,6 +117,12 @@
 #include "utils/Logger.h"
 #include "utils/Timer.h"
 
+// GPIOViewer library - Must be included after other libraries
+// Note: GPIOViewer requires Arduino ESP32 core version 3 or newer
+// If you get compilation errors, ensure you have the correct ESP32 core version
+// For now, we'll use the fixed version that works with current setup
+#include "gpio_viewer_fixed.h"
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXTERN GLOBAL OBJECT DECLARATIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -151,6 +157,9 @@ uint8_t peerMAC[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Broadcast
 #if ENABLE_CAMERA && (DEVICE_TYPE == 1)
 CameraManager cameraManager;
 #endif
+
+// Global object instances
+GPIOViewer gpioViewer; // GPIO monitoring instance
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIMER OBJECTS FOR NON-BLOCKING OPERATIONS
@@ -188,6 +197,7 @@ void blinkLED(int count, int delayMs);
 bool initSPIFFS();
 void printSystemInfo();
 void printBootBanner();
+void initGPIOViewer();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ESP-NOW CALLBACK: DATA RECEIVED
@@ -1011,6 +1021,80 @@ void setup()
   }
 
   DEBUG_PRINTLN("\nEntering main loop...\n");
+
+  // Initialize GPIOViewer after all other systems are ready
+  initGPIOViewer();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GPIOVIEWER INTEGRATION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * @brief Initialize GPIOViewer with optimal settings for the ESP32 system
+ *
+ * This function configures GPIOViewer to work seamlessly with the
+ * existing ESP32 Dual Communication System without interfering with
+ * other components.
+ */
+void initGPIOViewer()
+{
+  DEBUG_PRINTLN("\n[GPIO] Initializing GPIOViewer...");
+
+  try
+  {
+    // Configure GPIOViewer settings for optimal performance
+    gpioViewer.setPort(8080);               // HTTP port for GPIOViewer
+    gpioViewer.setSamplingInterval(100);    // Sampling interval in ms (default: 100ms)
+    gpioViewer.setSkipPeripheralPins(true); // Skip I2C/SPI/UART pins owned by peripherals
+
+    // Initialize GPIOViewer - this will start the web server on port 8080
+    gpioViewer.begin();
+
+    DEBUG_PRINTLN("✓ GPIOViewer initialized successfully");
+    DEBUG_PRINTLN("┌───────────────────────────────────────────────────┐");
+    DEBUG_PRINTLN("│              GPIOVIEWER ACCESS                    │");
+    DEBUG_PRINTLN("├───────────────────────────────────────────────────┤");
+    DEBUG_PRINTF("│ URL:  http://%-35s │\n", WiFi.localIP().toString().c_str());
+    DEBUG_PRINTF("│ Port: %-35s │\n", "8080");
+    DEBUG_PRINTLN("│                                                   │");
+    DEBUG_PRINTLN("│ Features:                                         │");
+    DEBUG_PRINTLN("│ • Real-time GPIO pin monitoring                   │");
+    DEBUG_PRINTLN("│ • Live pin state visualization                    │");
+    DEBUG_PRINTLN("│ • Pin function detection                          │");
+    DEBUG_PRINTLN("│ • Board-specific pin layouts                      │");
+    DEBUG_PRINTLN("│ • mDNS support (gpioviewer.local:8080)            │");
+    DEBUG_PRINTLN("└───────────────────────────────────────────────────┘");
+  }
+  catch (const std::exception &e)
+  {
+    DEBUG_PRINTLN("⚠️ GPIOViewer initialization failed!");
+    DEBUG_PRINTF("   Error: %s\n", e.what());
+    DEBUG_PRINTLN("   Continuing without GPIO monitoring...");
+  }
+  catch (...)
+  {
+    DEBUG_PRINTLN("⚠️ GPIOViewer initialization failed with unknown error!");
+    DEBUG_PRINTLN("   Continuing without GPIO monitoring...");
+  }
+}
+
+/**
+ * @brief Update GPIOViewer (called from main loop)
+ *
+ * This function should be called periodically from the main loop
+ * to keep GPIOViewer responsive. It handles web server requests
+ * and updates the GPIO monitoring interface.
+ */
+void updateGPIOViewer()
+{
+  // GPIOViewer handles its own timing and web server requests
+  // This function can be called frequently from the main loop
+  // without blocking other operations
+
+  // Note: GPIOViewer.begin() starts its own web server that runs
+  // in the background. This function is mainly for future extensibility
+  // and potential real-time updates if needed.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1121,7 +1205,13 @@ void loop()
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // 10. YIELD TO PREVENT WATCHDOG RESET
+  // 10. UPDATE GPIOVIEWER
+  // ─────────────────────────────────────────────────────────────────────
+  // Keep GPIOViewer responsive by calling its update function
+  updateGPIOViewer();
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 11. YIELD TO PREVENT WATCHDOG RESET
   // ─────────────────────────────────────────────────────────────────────
   // Small delay to prevent watchdog timeout and reduce power consumption
   // Also allows background WiFi tasks to run

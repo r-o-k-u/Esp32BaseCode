@@ -33,9 +33,11 @@ The system supports 6 main actuator types:
 - **Functions**: Color mixing, brightness, effects
 - **Web Interface**: `/actuators.html` - RGB LED Control section
 
-### 4. Motor Control
-- **Pins**: GPIO 14, 33 (direction), 32 (speed PWM)
-- **Functions**: Forward/backward, speed control, stop
+### 4. Motor Control (L298N Driver)
+- **Driver**: L298N Dual H-Bridge Motor Driver
+- **Pins**: GPIO 14 (IN1), 33 (IN2), 32 (Enable PWM)
+- **Functions**: Forward/backward, speed control, stop, brake
+- **Power**: 5-35V DC, up to 2A per channel
 - **Web Interface**: `/actuators.html` - Motor Control section
 
 ### 5. Relay Control
