@@ -668,3 +668,105 @@ void RGBLEDController::updateLightningEffect()
     // Lightning effect is handled in the main lightning() function
     // This is a placeholder for continuous lightning effects
 }
+
+// Additional effects for actuator control
+void RGBLEDController::pulseEffect(int red, int green, int blue, int duration)
+{
+    unsigned long startTime = millis();
+    int startRed = redValue;
+    int startGreen = greenValue;
+    int startBlue = blueValue;
+
+    while (millis() - startTime < duration)
+    {
+        unsigned long elapsed = millis() - startTime;
+        float progress = (float)elapsed / duration;
+
+        // Sinusoidal pulse
+        float pulse = (sin(progress * PI * 2) + 1) / 2;
+
+        int currentRed = startRed + (red - startRed) * pulse;
+        int currentGreen = startGreen + (green - startGreen) * pulse;
+        int currentBlue = startBlue + (blue - startBlue) * pulse;
+
+        setColor(currentRed, currentGreen, currentBlue);
+        delay(20);
+    }
+}
+
+void RGBLEDController::breatheEffect(int red, int green, int blue, int cycleTime)
+{
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < cycleTime)
+    {
+        unsigned long elapsed = millis() - startTime;
+        float progress = (float)elapsed / cycleTime;
+
+        // Smooth breathing effect
+        float breath = (sin(progress * PI * 2 - PI / 2) + 1) / 2;
+
+        int currentRed = red * breath;
+        int currentGreen = green * breath;
+        int currentBlue = blue * breath;
+
+        setColor(currentRed, currentGreen, currentBlue);
+        delay(20);
+    }
+}
+
+void RGBLEDController::chaseEffect(int red, int green, int blue, int wait)
+{
+    for (int j = 0; j < 10; j++)
+    {
+        for (int q = 0; q < 3; q++)
+        {
+            setColor(red, green, blue);
+            delay(wait);
+            setColor(0, 0, 0);
+            delay(wait);
+        }
+    }
+}
+
+void RGBLEDController::fireEffect(int cooling, int sparking, int speedDelay)
+{
+    // Fire effect implementation
+    static byte heat[3];
+
+    // Step 1.  Cool down every cell a little
+    for (int i = 0; i < 3; i++)
+    {
+        int coolAmount = random(0, ((cooling * 10) / 3) + 2);
+        heat[i] = max(0, (int)heat[i] - coolAmount);
+    }
+
+    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+    heat[2] = (heat[2] + heat[1] + heat[1]) / 3;
+    heat[1] = (heat[1] + heat[0] + heat[0]) / 3;
+
+    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
+    if (random(255) < sparking)
+    {
+        int y = random(3);
+        int sparkAmount = random(160, 255);
+        heat[y] = min(255, (int)heat[y] + sparkAmount);
+    }
+
+    // Step 4.  Map from heat cells to LED colors
+    byte colorindex = heat[2];
+    if (colorindex < 64)
+    {
+        setColor(colorindex * 4, 0, 0); // Red
+    }
+    else if (colorindex < 128)
+    {
+        setColor(255, (colorindex - 64) * 4, 0); // Orange/Yellow
+    }
+    else
+    {
+        setColor(255, 255, (colorindex - 128) * 4); // White/Yellow
+    }
+
+    delay(speedDelay);
+}

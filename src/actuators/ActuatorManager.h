@@ -76,12 +76,24 @@ public:
     void triggerAlert();
     void setActuator(const String &actuatorName, int value);
 
+    // Additional actuator control functions
+    void blinkLED(int times, int interval);
+    void rampMotorUp(int duration);
+    void rampMotorDown(int duration);
+    void cycleRelays(int times, int interval);
+    void playMelody(const String &melodyType);
+    void saveCurrentScene(const String &sceneName);
+    void loadSceneList();
+
     // Status and Configuration
     String getStatus();
     bool saveConfiguration();
     bool loadConfiguration();
     void loadDefaultConfiguration();
     void update();
+
+    // Public access methods for WebServer
+    BuzzerController *getBuzzerController() { return buzzerController; }
 
 private:
     void initializeActuators();

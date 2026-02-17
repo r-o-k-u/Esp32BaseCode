@@ -85,6 +85,12 @@ public:
     void fire(int cooling = 55, int sparking = 120, int speedDelay = 15);
     void lightning(int red, int green, int blue, int strikes = 3, int strikeDelay = 500, int flashDelay = 50);
 
+    // Additional actuator control effects
+    void pulseEffect(int red, int green, int blue, int duration);
+    void breatheEffect(int red, int green, int blue, int cycleTime);
+    void chaseEffect(int red, int green, int blue, int wait);
+    void fireEffect(int cooling, int sparking, int speedDelay);
+
     // Color utilities
     void fadeToBlack(int fadeRate = 10);
     void pulse(int red, int green, int blue, int duration = 1000);

@@ -1,6 +1,6 @@
 /**
  * @file DHTSensor.h
- * @brief DHT22 Temperature and Humidity Sensor Interface
+ * @brief DHT11 Temperature and Humidity Sensor Interface
  */
 
 #ifndef DHT_SENSOR_H

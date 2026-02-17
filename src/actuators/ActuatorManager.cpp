@@ -64,7 +64,7 @@ void ActuatorManager::initializeActuators()
     }
 
     // Initialize Motor Controller
-    motorController = new MotorController(MOTOR1_IN1, MOTOR1_IN2, MOTOR1_EN);
+    motorController = new MotorController(MOTOR1_IN1, MOTOR1_IN2, MOTOR1_EN, MOTOR2_IN3, MOTOR2_IN4, MOTOR2_EN);
     if (motorController->begin())
     {
         DEBUG_PRINTLN("[ACTUATOR] Motor Controller initialized");
@@ -158,6 +158,26 @@ void ActuatorManager::stopMotor()
     {
         motorController->stop();
     }
+}
+
+void ActuatorManager::loadDefaultConfiguration()
+{
+    // Set default states
+    if (ledController)
+        ledController->setState(false);
+    if (buzzerController)
+        buzzerController->setState(false);
+    if (motorController)
+        motorController->stop();
+    if (rgbController)
+        rgbController->setColor(0, 0, 0);
+    if (relayController)
+        relayController->allOff();
+    if (servoController)
+        servoController->setAngle(1, 90);
+    servoController->setAngle(2, 90);
+
+    DEBUG_PRINTLN("[ACTUATOR] Default configuration loaded");
 }
 
 int ActuatorManager::getSpeed()
@@ -269,14 +289,6 @@ int ActuatorManager::getServoAngle(int servo)
         return servoController->getAngle(servo);
     }
     return 0;
-}
-
-void ActuatorManager::sweepServo(int servo, int startAngle, int endAngle, int speed)
-{
-    if (servoController)
-    {
-        servoController->sweep(servo, startAngle, endAngle, speed);
-    }
 }
 
 // Scene Management
@@ -450,26 +462,6 @@ bool ActuatorManager::loadConfiguration()
     return true;
 }
 
-void ActuatorManager::loadDefaultConfiguration()
-{
-    // Set default states
-    if (ledController)
-        ledController->setState(false);
-    if (buzzerController)
-        buzzerController->setState(false);
-    if (motorController)
-        motorController->stop();
-    if (rgbController)
-        rgbController->setColor(0, 0, 0);
-    if (relayController)
-        relayController->allOff();
-    if (servoController)
-        servoController->setAngle(1, 90);
-    servoController->setAngle(2, 90);
-
-    DEBUG_PRINTLN("[ACTUATOR] Default configuration loaded");
-}
-
 void ActuatorManager::executeSceneInternal(const String &sceneName)
 {
     if (sceneName == "welcome")
@@ -497,8 +489,184 @@ void ActuatorManager::executeSceneInternal(const String &sceneName)
         // Rainbow effect
         rainbowCycle(20);
     }
+    else if (sceneName == "pulse")
+    {
+        // Pulse effect
+        if (rgbController)
+        {
+            rgbController->pulseEffect(255, 0, 0, 1000); // Red pulse
+        }
+    }
+    else if (sceneName == "breathe")
+    {
+        // Breathe effect
+        if (rgbController)
+        {
+            rgbController->breatheEffect(0, 255, 0, 2000); // Green breathe
+        }
+    }
+    else if (sceneName == "chase")
+    {
+        // Chase effect
+        if (rgbController)
+        {
+            rgbController->chaseEffect(0, 0, 255, 50); // Blue chase
+        }
+    }
+    else if (sceneName == "fire")
+    {
+        // Fire effect
+        if (rgbController)
+        {
+            rgbController->fireEffect(55, 120, 15);
+        }
+    }
     else
     {
         DEBUG_PRINTLN("[ACTUATOR] Unknown scene: " + sceneName);
     }
+}
+
+// New actuator control functions
+void ActuatorManager::blinkLED(int times, int interval)
+{
+    if (ledController)
+    {
+        for (int i = 0; i < times; i++)
+        {
+            ledController->setState(true);
+            delay(interval / 2);
+            ledController->setState(false);
+            delay(interval / 2);
+        }
+    }
+}
+
+void ActuatorManager::rampMotorUp(int duration)
+{
+    if (motorController)
+    {
+        int currentSpeed = motorController->getSpeed();
+        int targetSpeed = 100;
+        int steps = duration / 50;
+
+        for (int i = 0; i <= steps; i++)
+        {
+            int speed = map(i, 0, steps, currentSpeed, targetSpeed);
+            motorController->setSpeed(speed);
+            delay(50);
+        }
+    }
+}
+
+void ActuatorManager::rampMotorDown(int duration)
+{
+    if (motorController)
+    {
+        int currentSpeed = motorController->getSpeed();
+        int targetSpeed = 0;
+        int steps = duration / 50;
+
+        for (int i = 0; i <= steps; i++)
+        {
+            int speed = map(i, 0, steps, currentSpeed, targetSpeed);
+            motorController->setSpeed(speed);
+            delay(50);
+        }
+    }
+}
+
+void ActuatorManager::sweepServo(int servo, int startAngle, int endAngle, int speed)
+{
+    if (servoController)
+    {
+        int steps = abs(endAngle - startAngle);
+        int direction = (endAngle > startAngle) ? 1 : -1;
+
+        for (int i = 0; i <= steps; i++)
+        {
+            int angle = startAngle + (i * direction);
+            servoController->setAngle(servo, angle);
+            delay(speed);
+        }
+    }
+}
+
+void ActuatorManager::cycleRelays(int times, int interval)
+{
+    if (relayController)
+    {
+        for (int t = 0; t < times; t++)
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                relayController->setState(i, true);
+                delay(interval);
+                relayController->setState(i, false);
+                delay(interval);
+            }
+        }
+    }
+}
+
+void ActuatorManager::playMelody(const String &melodyType)
+{
+    if (buzzerController)
+    {
+        if (melodyType == "startup")
+        {
+            int notes[] = {523, 659, 784};
+            int durations[] = {200, 200, 400};
+            buzzerController->playMelody(notes, durations, 3);
+        }
+        else if (melodyType == "alert")
+        {
+            int notes[] = {880, 440, 880, 440};
+            int durations[] = {200, 200, 200, 200};
+            buzzerController->playMelody(notes, durations, 4);
+        }
+        else if (melodyType == "emergency")
+        {
+            int notes[] = {800, 600, 800, 600};
+            int durations[] = {100, 100, 100, 100};
+            buzzerController->playMelody(notes, durations, 4);
+        }
+        else if (melodyType == "siren")
+        {
+            buzzerController->sirenSound(2000);
+        }
+    }
+}
+
+void ActuatorManager::saveCurrentScene(const String &sceneName)
+{
+    // Save current actuator states as a scene
+    if (ledController)
+    {
+        // Save LED state
+    }
+    if (rgbController)
+    {
+        // Save RGB color
+    }
+    if (motorController)
+    {
+        // Save motor speed
+    }
+    if (servoController)
+    {
+        // Save servo angles
+    }
+    if (relayController)
+    {
+        // Save relay states
+    }
+
+    DEBUG_PRINTLN("[ACTUATOR] Scene saved: " + sceneName);
+}
+
+void ActuatorManager::loadSceneList()
+{
+    // Load and display available scenes
+    DEBUG_PRINTLN("[ACTUATOR] Loading scene list");
 }

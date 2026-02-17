@@ -516,6 +516,493 @@ void WebServerManager::processWebSocketMessage(AsyncWebSocketClient *client,
         delay(1000);
         ESP.restart();
     }
+    // LED CONTROL
+    else if (strcmp(type, "ledControl") == 0)
+    {
+        const char *command = doc["command"];
+        int value = doc["value"] | 0;
+
+        if (strcmp(command, "on") == 0)
+        {
+            actuatorManager.setLED(true);
+        }
+        else if (strcmp(command, "off") == 0)
+        {
+            actuatorManager.setLED(false);
+        }
+        else if (strcmp(command, "toggle") == 0)
+        {
+            actuatorManager.setLED(!actuatorManager.getLED());
+        }
+        else if (strcmp(command, "brightness") == 0)
+        {
+            actuatorManager.setActuator("led", value);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "ledStatus";
+        response["state"] = actuatorManager.getLED();
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // RGB LED CONTROL
+    else if (strcmp(type, "rgbControl") == 0)
+    {
+        const char *command = doc["command"];
+
+        if (strcmp(command, "color") == 0)
+        {
+            int r = doc["r"] | 0;
+            int g = doc["g"] | 0;
+            int b = doc["b"] | 0;
+            actuatorManager.setRGBColor(r, g, b);
+        }
+        else if (strcmp(command, "effect") == 0)
+        {
+            const char *effect = doc["effect"];
+            if (effect)
+            {
+                actuatorManager.executeScene(effect);
+            }
+        }
+        else if (strcmp(command, "brightness") == 0)
+        {
+            int brightness = doc["value"] | 255;
+            actuatorManager.setRGBBrightness(brightness);
+        }
+        else if (strcmp(command, "off") == 0)
+        {
+            actuatorManager.setRGBColor(0, 0, 0);
+        }
+
+        StaticJsonDocument<256> response;
+        response["type"] = "rgbStatus";
+        response["r"] = actuatorManager.getStatus().indexOf("\"r\":") >= 0 ? 1 : 0;
+        char buffer[256];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // BUZZER CONTROL
+    else if (strcmp(type, "buzzerControl") == 0)
+    {
+        const char *command = doc["command"];
+
+        if (strcmp(command, "on") == 0)
+        {
+            actuatorManager.setBuzzer(true);
+        }
+        else if (strcmp(command, "off") == 0)
+        {
+            actuatorManager.setBuzzer(false);
+        }
+        else if (strcmp(command, "tone") == 0)
+        {
+            int frequency = doc["frequency"] | 1000;
+            int duration = doc["duration"] | 500;
+            actuatorManager.playTone(frequency, duration);
+        }
+        else if (strcmp(command, "melody") == 0)
+        {
+            const char *melody = doc["melody"];
+            if (melody)
+            {
+                actuatorManager.playMelody(melody);
+            }
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "buzzerStatus";
+        response["state"] = actuatorManager.getStatus().indexOf("\"buzzer\":true") >= 0;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // MOTOR CONTROL
+    else if (strcmp(type, "motorControl") == 0)
+    {
+        const char *command = doc["command"];
+
+        if (strcmp(command, "forward") == 0)
+        {
+            int speed = doc["speed"] | 100;
+            actuatorManager.setMotorDirection(true);
+            actuatorManager.setMotorSpeed(speed);
+        }
+        else if (strcmp(command, "backward") == 0)
+        {
+            int speed = doc["speed"] | 100;
+            actuatorManager.setMotorDirection(false);
+            actuatorManager.setMotorSpeed(speed);
+        }
+        else if (strcmp(command, "stop") == 0)
+        {
+            actuatorManager.stopMotor();
+        }
+        else if (strcmp(command, "speed") == 0)
+        {
+            int speed = doc["speed"] | 0;
+            actuatorManager.setMotorSpeed(speed);
+        }
+        else if (strcmp(command, "brake") == 0)
+        {
+            actuatorManager.stopMotor();
+        }
+        else if (strcmp(command, "rampUp") == 0)
+        {
+            int duration = doc["duration"] | 2000;
+            actuatorManager.rampMotorUp(duration);
+        }
+        else if (strcmp(command, "rampDown") == 0)
+        {
+            int duration = doc["duration"] | 2000;
+            actuatorManager.rampMotorDown(duration);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "motorStatus";
+        response["speed"] = actuatorManager.getSpeed();
+        response["direction"] = actuatorManager.getDirection() ? "forward" : "backward";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // SERVO CONTROL
+    else if (strcmp(type, "servoControl") == 0)
+    {
+        int servo = doc["servo"] | 1;
+        const char *command = doc["command"];
+
+        if (strcmp(command, "angle") == 0)
+        {
+            int angle = doc["angle"] | 90;
+            actuatorManager.setServoAngle(servo, angle);
+        }
+        else if (strcmp(command, "sweep") == 0)
+        {
+            int startAngle = doc["start"] | 0;
+            int endAngle = doc["end"] | 180;
+            int speed = doc["speed"] | 10;
+            actuatorManager.sweepServo(servo, startAngle, endAngle, speed);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "servoStatus";
+        response["servo"] = servo;
+        response["angle"] = actuatorManager.getServoAngle(servo);
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // RELAY CONTROL
+    else if (strcmp(type, "relayControl") == 0)
+    {
+        int relay = doc["relay"] | 1;
+        const char *command = doc["command"];
+
+        if (strcmp(command, "on") == 0)
+        {
+            actuatorManager.setRelay(relay, true);
+        }
+        else if (strcmp(command, "off") == 0)
+        {
+            actuatorManager.setRelay(relay, false);
+        }
+        else if (strcmp(command, "toggle") == 0)
+        {
+            actuatorManager.toggleRelay(relay);
+        }
+        else if (strcmp(command, "pulse") == 0)
+        {
+            int duration = doc["duration"] | 1000;
+            actuatorManager.pulseRelay(relay, duration);
+        }
+        else if (strcmp(command, "allOn") == 0)
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                actuatorManager.setRelay(i, true);
+            }
+        }
+        else if (strcmp(command, "allOff") == 0)
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                actuatorManager.setRelay(i, false);
+            }
+        }
+        else if (strcmp(command, "cycle") == 0)
+        {
+            int times = doc["times"] | 3;
+            int interval = doc["interval"] | 500;
+            actuatorManager.cycleRelays(times, interval);
+        }
+
+        StaticJsonDocument<256> response;
+        response["type"] = "relayStatus";
+        response["relay1"] = actuatorManager.getRelay(1);
+        response["relay2"] = actuatorManager.getRelay(2);
+        response["relay3"] = actuatorManager.getRelay(3);
+        char buffer[256];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // SCENE CONTROL
+    else if (strcmp(type, "sceneControl") == 0)
+    {
+        const char *command = doc["command"];
+        const char *sceneName = doc["scene"];
+
+        if (strcmp(command, "execute") == 0 && sceneName)
+        {
+            actuatorManager.executeScene(sceneName);
+        }
+        else if (strcmp(command, "save") == 0 && sceneName)
+        {
+            actuatorManager.saveCurrentScene(sceneName);
+        }
+        else if (strcmp(command, "list") == 0)
+        {
+            actuatorManager.loadSceneList();
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "sceneExecuted";
+        response["scene"] = sceneName ? sceneName : "";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // EMERGENCY STOP
+    else if (strcmp(type, "emergencyStop") == 0)
+    {
+        actuatorManager.emergencyStop();
+
+        StaticJsonDocument<128> response;
+        response["type"] = "emergencyStop";
+        response["success"] = true;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+
+        // Also broadcast alert
+        StaticJsonDocument<128> alert;
+        alert["type"] = "alert";
+        alert["message"] = "Emergency stop activated";
+        char alertBuffer[128];
+        serializeJson(alert, alertBuffer);
+        ws->textAll(alertBuffer);
+    }
+    // TEST ACTUATOR
+    else if (strcmp(type, "testActuator") == 0)
+    {
+        const char *actuator = doc["actuator"];
+        int duration = doc["duration"] | 1000;
+
+        if (actuator)
+        {
+            // Store original state and test
+            bool originalState = false;
+
+            if (strcmp(actuator, "led") == 0)
+            {
+                originalState = actuatorManager.getLED();
+                actuatorManager.setLED(true);
+                delay(duration);
+                actuatorManager.setLED(originalState);
+            }
+
+            StaticJsonDocument<128> response;
+            response["type"] = "actuatorTest";
+            response["actuator"] = actuator;
+            response["success"] = true;
+            char buffer[128];
+            serializeJson(response, buffer);
+            client->text(buffer);
+        }
+    }
+    // BLINK ACTUATOR
+    else if (strcmp(type, "blinkActuator") == 0)
+    {
+        const char *actuator = doc["actuator"];
+        int times = doc["times"] | 3;
+        int interval = doc["interval"] | 500;
+
+        if (actuator && strcmp(actuator, "led") == 0)
+        {
+            actuatorManager.blinkLED(times, interval);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "actuatorBlink";
+        response["actuator"] = actuator;
+        response["times"] = times;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // RAMP MOTOR
+    else if (strcmp(type, "rampMotor") == 0)
+    {
+        const char *direction = doc["direction"];
+        int duration = doc["duration"] | 2000;
+
+        if (strcmp(direction, "up") == 0)
+        {
+            actuatorManager.rampMotorUp(duration);
+        }
+        else if (strcmp(direction, "down") == 0)
+        {
+            actuatorManager.rampMotorDown(duration);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "motorRamp";
+        response["direction"] = direction;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // SWEEP SERVO
+    else if (strcmp(type, "sweepServo") == 0)
+    {
+        int servo = doc["servo"] | 1;
+        int speed = doc["speed"] | 10;
+
+        actuatorManager.sweepServo(servo, 0, 180, speed);
+
+        StaticJsonDocument<128> response;
+        response["type"] = "servoSweep";
+        response["servo"] = servo;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // CYCLE RELAYS
+    else if (strcmp(type, "cycleRelays") == 0)
+    {
+        int times = doc["times"] | 3;
+        int interval = doc["interval"] | 500;
+
+        actuatorManager.cycleRelays(times, interval);
+
+        StaticJsonDocument<128> response;
+        response["type"] = "relaysCycle";
+        response["times"] = times;
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // PLAY MELODY
+    else if (strcmp(type, "playMelody") == 0)
+    {
+        const char *melody = doc["melody"];
+        if (melody)
+        {
+            actuatorManager.playMelody(melody);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "melodyPlaying";
+        response["melody"] = melody ? melody : "";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // EXECUTE SCENE
+    else if (strcmp(type, "executeScene") == 0)
+    {
+        const char *scene = doc["scene"];
+        if (scene)
+        {
+            actuatorManager.executeScene(scene);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "sceneExecuted";
+        response["scene"] = scene ? scene : "";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // SAVE SCENE
+    else if (strcmp(type, "saveScene") == 0)
+    {
+        const char *name = doc["name"];
+        if (name)
+        {
+            actuatorManager.saveCurrentScene(name);
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "sceneSaved";
+        response["name"] = name ? name : "";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
+    // GET SCENES
+    else if (strcmp(type, "getScenes") == 0)
+    {
+        actuatorManager.loadSceneList();
+
+        StaticJsonDocument<256> response;
+        response["type"] = "scenesList";
+
+        // Create default scenes array
+        JsonArray scenes = response.createNestedArray("scenes");
+        scenes.add("welcome");
+        scenes.add("alert");
+        scenes.add("party");
+        scenes.add("calm");
+        scenes.add("security");
+        scenes.add("rainbow");
+        scenes.add("pulse");
+        scenes.add("breathe");
+        scenes.add("chase");
+        scenes.add("fire");
+
+        char buffer[256];
+        serializeJson(response, buffer);
+        client->text(buffer);
+    }
+    // RGB EFFECT
+    else if (strcmp(type, "rgbEffect") == 0)
+    {
+        const char *effect = doc["effect"];
+
+        if (effect)
+        {
+            // Execute the effect via scene system
+            if (strcmp(effect, "rainbow") == 0)
+            {
+                actuatorManager.executeScene("rainbow");
+            }
+            else if (strcmp(effect, "pulse") == 0)
+            {
+                actuatorManager.executeScene("pulse");
+            }
+            else if (strcmp(effect, "chase") == 0)
+            {
+                actuatorManager.executeScene("chase");
+            }
+            else if (strcmp(effect, "fire") == 0)
+            {
+                actuatorManager.executeScene("fire");
+            }
+            else if (strcmp(effect, "stop") == 0)
+            {
+                actuatorManager.setRGBColor(0, 0, 0);
+            }
+        }
+
+        StaticJsonDocument<128> response;
+        response["type"] = "rgbEffectStarted";
+        response["effect"] = effect ? effect : "";
+        char buffer[128];
+        serializeJson(response, buffer);
+        ws->textAll(buffer);
+    }
 }
 
 /**
@@ -609,19 +1096,19 @@ void WebServerManager::setupRoutes()
     server->on("/debug/files", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         String response = "<!DOCTYPE html><html><head><title>SPIFFS Files</title>";
         response += "<style>body {font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5;}";
         response += "h1 {color: #333;} ul {list-style-type: none; padding: 0;}";
         response += "li {padding: 8px; margin: 5px 0; background: white; border-radius: 4px;}</style></head><body>";
         response += "<h1>🗂️ SPIFFS Files Debug</h1>";
-        
+
         if (webServer.spiffsAvailable) {
             response += "<p><strong>SPIFFS Status:</strong> ✓ Available</p>";
             response += "<h2>All Files:</h2><ul>";
             File root = SPIFFS.open("/");
             File file = root.openNextFile();
-            
+
             int fileCount = 0;
             while(file){
                 String filePath = String(file.path());
@@ -634,7 +1121,7 @@ void WebServerManager::setupRoutes()
         } else {
             response += "<p><strong>SPIFFS Status:</strong> ✗ Not Available</p>";
         }
-        
+
         response += "<hr><p><a href='/'>← Back to Dashboard</a></p></body></html>";
         request->send(200, "text/html", response); });
 
@@ -644,7 +1131,7 @@ void WebServerManager::setupRoutes()
     server->on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<1536> doc;
         doc["device"] = DEVICE_NAME;
         doc["version"] = FIRMWARE_VERSION;
@@ -661,14 +1148,14 @@ void WebServerManager::setupRoutes()
         doc["clients"] = webServer.clientCount;
         doc["spiffs"] = webServer.spiffsAvailable;
         doc["sensorCount"] = sensorManager.getSensorCount();
-        
+
         // Storage info
         size_t totalBytes = SPIFFS.totalBytes();
         size_t usedBytes = SPIFFS.usedBytes();
         doc["storageTotal"] = totalBytes;
         doc["storageUsed"] = usedBytes;
         doc["storageUsage"] = (usedBytes * 100 / totalBytes);
-        
+
         // WiFi Manager info
         JsonObject wifi = doc.createNestedObject("wifi");
         wifi["connected"] = WiFi.status() == WL_CONNECTED;
@@ -684,7 +1171,7 @@ void WebServerManager::setupRoutes()
             wifi["apIP"] = WiFi.softAPIP().toString();
             wifi["apClients"] = WiFi.softAPgetStationNum();
         }
-        
+
         // OTA Manager info
         JsonObject ota = doc.createNestedObject("ota");
         ota["initialized"] = otaManager.isInitialized();
@@ -694,7 +1181,7 @@ void WebServerManager::setupRoutes()
         ota["progress"] = otaManager.getProgress();
         ota["totalUpdates"] = otaManager.getTotalUpdates();
         ota["failedUpdates"] = otaManager.getFailedUpdates();
-        
+
         // ESP-NOW statistics
         JsonObject espnow = doc.createNestedObject("espnow");
         uint32_t sent, received, failed;
@@ -709,7 +1196,7 @@ void WebServerManager::setupRoutes()
 #else
         doc["hasCamera"] = false;
 #endif
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -722,12 +1209,12 @@ void WebServerManager::setupRoutes()
     server->on("/api/wifi/scan", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         int n = WiFi.scanNetworks();
-        
+
         StaticJsonDocument<2048> doc;
         JsonArray networks = doc.createNestedArray("networks");
-        
+
         for (int i = 0; i < n; i++) {
             JsonObject net = networks.createNestedObject();
             net["ssid"] = WiFi.SSID(i);
@@ -735,9 +1222,9 @@ void WebServerManager::setupRoutes()
             net["encryption"] = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Secured";
             net["channel"] = WiFi.channel(i);
         }
-        
+
         doc["count"] = n;
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -746,24 +1233,24 @@ void WebServerManager::setupRoutes()
     server->on("/api/wifi/connect", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<256> doc;
         deserializeJson(doc, (char*)data);
-        
+
         const char* ssid = doc["ssid"];
         const char* password = doc["password"];
-        
+
         if (ssid) {
             // Attempt to connect
             WiFi.begin(ssid, password);
-            
+
             // Wait up to 10 seconds
             int timeout = 0;
             while (WiFi.status() != WL_CONNECTED && timeout < 20) {
                 delay(500);
                 timeout++;
             }
-            
+
             if (WiFi.status() == WL_CONNECTED) {
                 request->send(200, "application/json", "{\"success\":true,\"ip\":\"" + WiFi.localIP().toString() + "\"}");
             } else {
@@ -784,7 +1271,7 @@ void WebServerManager::setupRoutes()
     server->on("/api/wifi/status", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<512> doc;
         doc["connected"] = WiFi.status() == WL_CONNECTED;
         doc["ssid"] = WiFi.SSID();
@@ -794,7 +1281,7 @@ void WebServerManager::setupRoutes()
         doc["gateway"] = WiFi.gatewayIP().toString();
         doc["subnet"] = WiFi.subnetMask().toString();
         doc["dns"] = WiFi.dnsIP().toString();
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -803,20 +1290,20 @@ void WebServerManager::setupRoutes()
     server->on("/api/wifi/ap/start", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<256> doc;
         deserializeJson(doc, (char*)data);
-        
+
         const char* ssid = doc["ssid"] | AP_SSID;
         const char* password = doc["password"] | AP_PASSWORD;
-        
+
         WiFi.softAP(ssid, password);
-        
+
         StaticJsonDocument<256> response;
         response["success"] = true;
         response["ssid"] = ssid;
         response["ip"] = WiFi.softAPIP().toString();
-        
+
         char buffer[256];
         serializeJson(response, buffer);
         request->send(200, "application/json", buffer); });
@@ -836,7 +1323,7 @@ void WebServerManager::setupRoutes()
     server->on("/api/ota/status", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<512> doc;
         doc["initialized"] = otaManager.isInitialized();
         doc["hostname"] = otaManager.getHostname();
@@ -846,8 +1333,7 @@ void WebServerManager::setupRoutes()
         doc["state"] = otaManager.getStatusString();
         doc["totalUpdates"] = otaManager.getTotalUpdates();
         doc["failedUpdates"] = otaManager.getFailedUpdates();
-        doc["lastUpdate"] = otaManager.getLastUpdateTime();
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -858,18 +1344,18 @@ void WebServerManager::setupRoutes()
                {
             if (!index) {
                 Serial.printf("OTA Update Start: %s\n", filename.c_str());
-                
+
                 // Start update
                 if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                     Update.printError(Serial);
                 }
             }
-            
+
             // Write data
             if (Update.write(data, len) != len) {
                 Update.printError(Serial);
             }
-            
+
             if (final) {
                 if (Update.end(true)) {
                     Serial.printf("OTA Update Success: %u bytes\n", index + len);
@@ -884,10 +1370,10 @@ void WebServerManager::setupRoutes()
     server->on("/api/sensors", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<1024> doc;
         sensorManager.getAllSensorData(doc.to<JsonObject>());
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -898,22 +1384,22 @@ void WebServerManager::setupRoutes()
     server->on("/api/actuator", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<256> doc;
         DeserializationError error = deserializeJson(doc, (char*)data);
-        
+
         if (error) {
             request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
             return;
         }
-        
+
         const char* actuator = doc["actuator"];
-        
+
         if (!actuator) {
             request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing actuator\"}");
             return;
         }
-        
+
         // Handle different actuator types
         if (doc.containsKey("value")) {
             int value = doc["value"];
@@ -929,7 +1415,7 @@ void WebServerManager::setupRoutes()
             int angle = doc["angle"];
             actuatorManager.setActuator(actuator, angle);
         }
-        
+
         // Broadcast state change to all WebSocket clients
         StaticJsonDocument<256> response;
         response["type"] = "actuatorSet";
@@ -941,12 +1427,719 @@ void WebServerManager::setupRoutes()
             response["b"] = doc["b"];
         }
         response["success"] = true;
-        
+
         char buffer[256];
         serializeJson(response, buffer);
         webServer.ws->textAll(buffer);
-        
+
         request->send(200, "application/json", "{\"success\":true}"); });
+
+    // BUZZER CONTROL API
+    server->on("/api/buzzer", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* action = doc["action"];
+
+        if (!action) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing action\"}");
+            return;
+        }
+
+        bool success = false;
+
+        if (strcmp(action, "playTone") == 0) {
+            int frequency = doc["frequency"] | 1000;
+            int duration = doc["duration"] | 500;
+            actuatorManager.getBuzzerController()->playTone(frequency, duration);
+            success = true;
+        }
+        else if (strcmp(action, "playMelody") == 0) {
+            const char* melody = doc["melody"];
+            if (melody) {
+                if (strcmp(melody, "startup") == 0) {
+                    // Startup melody
+                    int notes[] = {523, 659, 784};
+                    int durations[] = {200, 200, 400};
+                    actuatorManager.getBuzzerController()->playMelody(notes, durations, 3);
+                }
+                else if (strcmp(melody, "alert") == 0) {
+                    // Alert melody
+                    int notes[] = {880, 440, 880, 440};
+                    int durations[] = {200, 200, 200, 200};
+                    actuatorManager.getBuzzerController()->playMelody(notes, durations, 4);
+                }
+                else if (strcmp(melody, "emergency") == 0) {
+                    // Emergency melody
+                    int notes[] = {800, 600, 800, 600};
+                    int durations[] = {100, 100, 100, 100};
+                    actuatorManager.getBuzzerController()->playMelody(notes, durations, 4);
+                }
+                success = true;
+            }
+        }
+        else if (strcmp(action, "setState") == 0) {
+            bool state = doc["state"] | false;
+            actuatorManager.getBuzzerController()->setState(state);
+            success = true;
+        }
+        else if (strcmp(action, "beep") == 0) {
+            int frequency = doc["frequency"] | 1000;
+            int duration = doc["duration"] | 500;
+            actuatorManager.getBuzzerController()->playBeep(frequency, duration);
+            success = true;
+        }
+        else if (strcmp(action, "errorSound") == 0) {
+            actuatorManager.getBuzzerController()->playErrorSound();
+            success = true;
+        }
+        else if (strcmp(action, "successSound") == 0) {
+            actuatorManager.getBuzzerController()->playSuccessSound();
+            success = true;
+        }
+        else if (strcmp(action, "alertSound") == 0) {
+            actuatorManager.getBuzzerController()->playAlertSound();
+            success = true;
+        }
+        else if (strcmp(action, "siren") == 0) {
+            int duration = doc["duration"] | 2000;
+            actuatorManager.getBuzzerController()->sirenSound(duration);
+            success = true;
+        }
+        else if (strcmp(action, "stop") == 0) {
+            actuatorManager.getBuzzerController()->stopTone();
+            success = true;
+        }
+
+        if (success) {
+            request->send(200, "application/json", "{\"success\":true}");
+
+            // Broadcast buzzer action to WebSocket clients
+            StaticJsonDocument<256> response;
+            response["type"] = "buzzerAction";
+            response["action"] = action;
+            if (doc.containsKey("frequency")) response["frequency"] = doc["frequency"];
+            if (doc.containsKey("duration")) response["duration"] = doc["duration"];
+            response["success"] = true;
+
+            char buffer[256];
+            serializeJson(response, buffer);
+            webServer.ws->textAll(buffer);
+        } else {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid action\"}");
+        } });
+
+    // BUZZER STATUS API
+    server->on("/api/buzzer/status", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        doc["type"] = "buzzerStatus";
+        doc["state"] = actuatorManager.getBuzzerController()->getState();
+        doc["playing"] = actuatorManager.getBuzzerController()->isPlaying();
+        doc["playTime"] = actuatorManager.getBuzzerController()->getPlayTime();
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
+
+    // BLINK LED API
+    server->on("/api/led/blink", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int times = doc["times"] | 3;
+        int interval = doc["interval"] | 500;
+
+        actuatorManager.blinkLED(times, interval);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "ledBlink";
+        wsResponse["times"] = times;
+        wsResponse["interval"] = interval;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // MOTOR RAMP API
+    server->on("/api/motor/ramp", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* direction = doc["direction"];
+        int duration = doc["duration"] | 2000;
+
+        if (strcmp(direction, "up") == 0) {
+            actuatorManager.rampMotorUp(duration);
+        }
+        else if (strcmp(direction, "down") == 0) {
+            actuatorManager.rampMotorDown(duration);
+        }
+        else {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid direction\"}");
+            return;
+        }
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "motorRamp";
+        wsResponse["direction"] = direction;
+        wsResponse["duration"] = duration;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // SERVO SWEEP API
+    server->on("/api/servo/sweep", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int servo = doc["servo"] | 1;
+        int startAngle = doc["startAngle"] | 0;
+        int endAngle = doc["endAngle"] | 180;
+        int speed = doc["speed"] | 10;
+
+        actuatorManager.sweepServo(servo, startAngle, endAngle, speed);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "servoSweep";
+        wsResponse["servo"] = servo;
+        wsResponse["startAngle"] = startAngle;
+        wsResponse["endAngle"] = endAngle;
+        wsResponse["speed"] = speed;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // CYCLE RELAYS API
+    server->on("/api/relays/cycle", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int times = doc["times"] | 3;
+        int interval = doc["interval"] | 500;
+
+        actuatorManager.cycleRelays(times, interval);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "relaysCycle";
+        wsResponse["times"] = times;
+        wsResponse["interval"] = interval;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // PLAY MELODY API
+    server->on("/api/buzzer/melody", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* melody = doc["melody"];
+
+        if (!melody) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing melody\"}");
+            return;
+        }
+
+        actuatorManager.playMelody(melody);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "buzzerMelody";
+        wsResponse["melody"] = melody;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // SAVE SCENE API
+    server->on("/api/scenes/save", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* sceneName = doc["name"];
+
+        if (!sceneName) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing scene name\"}");
+            return;
+        }
+
+        actuatorManager.saveCurrentScene(sceneName);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "sceneSaved";
+        wsResponse["name"] = sceneName;
+        wsResponse["success"] = true;
+
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // LIST SCENES API
+    server->on("/api/scenes/list", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        actuatorManager.loadSceneList();
+
+        request->send(200, "application/json", "{\"success\":true}"); });
+
+    // RGB LED CONTROL API
+    server->on("/api/rgbled/color", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int r = doc["r"] | doc["red"] | 0;
+        int g = doc["g"] | doc["green"] | 0;
+        int b = doc["b"] | doc["blue"] | 0;
+
+        actuatorManager.setRGBColor(r, g, b);
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<256> response;
+        response["type"] = "rgbColorSet";
+        response["r"] = r;
+        response["g"] = g;
+        response["b"] = b;
+        response["success"] = true;
+
+        char buffer[256];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // RGB LED EFFECT API
+    server->on("/api/rgbled/effect", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* effect = doc["effect"];
+
+        if (effect) {
+            if (strcmp(effect, "rainbow") == 0) {
+                // Start rainbow effect
+                request->send(200, "application/json", "{\"success\":true,\"effect\":\"rainbow\"}");
+            }
+            else if (strcmp(effect, "pulse") == 0) {
+                request->send(200, "application/json", "{\"success\":true,\"effect\":\"pulse\"}");
+            }
+            else if (strcmp(effect, "chase") == 0) {
+                request->send(200, "application/json", "{\"success\":true,\"effect\":\"chase\"}");
+            }
+            else if (strcmp(effect, "fire") == 0) {
+                request->send(200, "application/json", "{\"success\":true,\"effect\":\"fire\"}");
+            }
+            else if (strcmp(effect, "stop") == 0) {
+                actuatorManager.setRGBColor(0, 0, 0);
+                request->send(200, "application/json", "{\"success\":true,\"effect\":\"stopped\"}");
+            }
+            else {
+                request->send(400, "application/json", "{\"success\":false,\"error\":\"Unknown effect\"}");
+            }
+        } else {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing effect\"}");
+        }
+
+        // Broadcast effect change
+        StaticJsonDocument<128> wsResponse;
+        wsResponse["type"] = "rgbEffect";
+        wsResponse["effect"] = effect;
+        char buffer[128];
+        serializeJson(wsResponse, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // RGB LED BRIGHTNESS API
+    server->on("/api/rgbled/brightness", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int brightness = doc["brightness"] | 255;
+        actuatorManager.setRGBBrightness(brightness);
+
+        request->send(200, "application/json", "{\"success\":true,\"brightness\":" + String(brightness) + "}"); });
+
+    // RGB LED STATUS API
+    server->on("/api/rgbled/status", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<512> doc;
+        doc["type"] = "rgbledStatus";
+        
+        // Get current RGB values from actuator manager
+        String status = actuatorManager.getStatus();
+        StaticJsonDocument<512> statusDoc;
+        deserializeJson(statusDoc, status);
+        
+        if (statusDoc.containsKey("rgb")) {
+            doc["rgb"] = statusDoc["rgb"];
+        }
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
+
+    // SERVO ANGLE API
+    server->on("/api/servo/angle", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int servo = doc["servo"] | 1;
+        int angle = doc["angle"] | 90;
+
+        // Validate angle
+        if (angle < 0) angle = 0;
+        if (angle > 180) angle = 180;
+
+        actuatorManager.setServoAngle(servo, angle);
+
+        request->send(200, "application/json", "{\"success\":true,\"servo\":" + String(servo) + ",\"angle\":" + String(angle) + "}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "servoAngleSet";
+        response["servo"] = servo;
+        response["angle"] = angle;
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // SERVO STATUS API
+    server->on("/api/servo/status", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        doc["type"] = "servoStatus";
+        doc["servo1"] = actuatorManager.getServoAngle(1);
+        doc["servo2"] = actuatorManager.getServoAngle(2);
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
+
+    // RELAY STATE API
+    server->on("/api/relay/state", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int relay = doc["relay"] | 1;
+        bool state = doc["state"] | false;
+
+        if (relay < 1 || relay > 3) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid relay number (1-3)\"}");
+            return;
+        }
+
+        actuatorManager.setRelay(relay, state);
+
+        request->send(200, "application/json", "{\"success\":true,\"relay\":" + String(relay) + ",\"state\":" + String(state ? "true" : "false") + "}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "relayStateChanged";
+        response["relay"] = relay;
+        response["state"] = state;
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // RELAY PULSE API
+    server->on("/api/relay/pulse", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int relay = doc["relay"] | 1;
+        int duration = doc["duration"] | 1000;
+
+        if (relay < 1 || relay > 3) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid relay number\"}");
+            return;
+        }
+
+        actuatorManager.pulseRelay(relay, duration);
+
+        request->send(200, "application/json", "{\"success\":true,\"relay\":" + String(relay) + ",\"duration\":" + String(duration) + "}"); });
+
+    // RELAY STATUS API
+    server->on("/api/relay/status", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        doc["type"] = "relayStatus";
+        doc["relay1"] = actuatorManager.getRelay(1);
+        doc["relay2"] = actuatorManager.getRelay(2);
+        doc["relay3"] = actuatorManager.getRelay(3);
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
+
+    // MOTOR SPEED API
+    server->on("/api/motor/speed", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        int speed = doc["speed"] | 0;
+        
+        // Validate speed
+        if (speed < 0) speed = 0;
+        if (speed > 100) speed = 100;
+
+        // Get direction if provided
+        const char* direction = doc["direction"];
+        if (direction) {
+            if (strcmp(direction, "forward") == 0) {
+                actuatorManager.setMotorDirection(true);
+            } else if (strcmp(direction, "backward") == 0) {
+                actuatorManager.setMotorDirection(false);
+            }
+        }
+
+        actuatorManager.setMotorSpeed(speed);
+
+        request->send(200, "application/json", "{\"success\":true,\"speed\":" + String(speed) + "}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "motorSpeedSet";
+        response["speed"] = speed;
+        response["direction"] = actuatorManager.getDirection() ? "forward" : "backward";
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // MOTOR DIRECTION API
+    server->on("/api/motor/direction", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        DeserializationError error = deserializeJson(doc, (char*)data);
+
+        if (error) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
+            return;
+        }
+
+        const char* direction = doc["direction"];
+
+        if (!direction) {
+            request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing direction\"}");
+            return;
+        }
+
+        bool forward = (strcmp(direction, "forward") == 0);
+        actuatorManager.setMotorDirection(forward);
+
+        request->send(200, "application/json", "{\"success\":true,\"direction\":\"" + String(direction) + "\"}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "motorDirectionSet";
+        response["direction"] = direction;
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // MOTOR STOP API
+    server->on("/api/motor/stop", HTTP_POST, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        actuatorManager.stopMotor();
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "motorStopped";
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // MOTOR BRAKE API
+    server->on("/api/motor/brake", HTTP_POST, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        actuatorManager.stopMotor();
+        // For L298N, setting both IN1 and IN2 HIGH creates a short brake
+
+        request->send(200, "application/json", "{\"success\":true}");
+
+        // Broadcast to WebSocket clients
+        StaticJsonDocument<128> response;
+        response["type"] = "motorBrake";
+        response["success"] = true;
+
+        char buffer[128];
+        serializeJson(response, buffer);
+        webServer.ws->textAll(buffer); });
+
+    // MOTOR STATUS API
+    server->on("/api/motor/status", HTTP_GET, [](AsyncWebServerRequest *request)
+               {
+        webServer.totalRequests++;
+
+        StaticJsonDocument<256> doc;
+        doc["type"] = "motorStatus";
+        doc["speed"] = actuatorManager.getSpeed();
+        doc["direction"] = actuatorManager.getDirection() ? "forward" : "backward";
+
+        String response;
+        serializeJson(doc, response);
+        request->send(200, "application/json", response); });
 
     // Get Actuator Status
     server->on("/api/actuators/status", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -959,7 +2152,7 @@ void WebServerManager::setupRoutes()
     server->on("/api/actuators/log", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         String log = dataLogger.readLog("actuators", 100);
         request->send(200, "text/plain", log); });
 
@@ -974,9 +2167,9 @@ void WebServerManager::setupRoutes()
     server->on("/api/actuators/export", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<2048> doc;
-        
+
         // System info
         JsonObject system = doc.createNestedObject("system");
         system["device"] = DEVICE_NAME;
@@ -984,13 +2177,13 @@ void WebServerManager::setupRoutes()
         system["uptime"] = millis();
         system["freeHeap"] = ESP.getFreeHeap();
         system["ip"] = WiFi.localIP().toString();
-        
+
         // Actuator status
         String status = actuatorManager.getStatus();
         StaticJsonDocument<1024> statusDoc;
         deserializeJson(statusDoc, status);
         doc["actuators"] = statusDoc;
-        
+
         // Activity log
         JsonArray activityLog = doc.createNestedArray("activityLog");
         String log = dataLogger.readLog("events", 50);
@@ -1007,7 +2200,7 @@ void WebServerManager::setupRoutes()
             start = end + 1;
             end = log.indexOf('\n', start);
         }
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -1017,9 +2210,9 @@ void WebServerManager::setupRoutes()
                {
         webServer.totalRequests++;
         actuatorManager.loadDefaultConfiguration();
-        
+
         request->send(200, "application/json", "{\"success\":true}");
-        
+
         StaticJsonDocument<128> doc;
         doc["type"] = "actuatorsReset";
         char buffer[128];
@@ -1031,9 +2224,9 @@ void WebServerManager::setupRoutes()
                {
         webServer.totalRequests++;
         actuatorManager.emergencyStop();
-        
+
         request->send(200, "application/json", "{\"success\":true}");
-        
+
         StaticJsonDocument<128> doc;
         doc["type"] = "alert";
         doc["message"] = "Emergency stop activated";
@@ -1047,10 +2240,10 @@ void WebServerManager::setupRoutes()
     server->on("/api/peers", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<1024> doc;
         JsonArray peers = doc.createNestedArray("peers");
-        
+
         uint8_t peerCount = espnowComm.getPeerCount();
         for (uint8_t i = 0; i < peerCount; i++) {
             PeerInfo* peer = espnowComm.getPeerInfo(i);
@@ -1065,7 +2258,7 @@ void WebServerManager::setupRoutes()
                 peerObj["connected"] = (millis() - peer->lastSeen) < 60000;
             }
         }
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -1074,32 +2267,32 @@ void WebServerManager::setupRoutes()
     server->on("/api/peers/send", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<512> doc;
         DeserializationError error = deserializeJson(doc, (char*)data);
-        
+
         if (error) {
             request->send(400, "application/json", "{\"success\":false,\"error\":\"JSON parse error\"}");
             return;
         }
-        
+
         const char* peerMac = doc["peer"];
         const char* message = doc["message"];
-        
+
         if (!peerMac || !message) {
             request->send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameters\"}");
             return;
         }
-        
+
         uint8_t mac[6];
         if (sscanf(peerMac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
                    &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
             request->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid MAC address\"}");
             return;
         }
-        
+
         bool success = espnowComm.sendMessage(mac, MSG_CUSTOM, message);
-        
+
         if (success) {
             request->send(200, "application/json", "{\"success\":true}");
         } else {
@@ -1112,12 +2305,12 @@ void WebServerManager::setupRoutes()
     server->on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         String category = "events";
         if (request->hasParam("category")) {
             category = request->getParam("category")->value();
         }
-        
+
         String logs = dataLogger.readLog(category.c_str(), 100);
         request->send(200, "text/plain", logs); });
 
@@ -1133,13 +2326,13 @@ void WebServerManager::setupRoutes()
     server->on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<512> doc;
         doc["deviceName"] = DEVICE_NAME;
         doc["sensorInterval"] = SENSOR_READ_INTERVAL;
         doc["enableLogging"] = ENABLE_DATA_LOGGING;
         doc["enableESPNow"] = ENABLE_ESPNOW;
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -1147,15 +2340,15 @@ void WebServerManager::setupRoutes()
     server->on("/api/config", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<512> doc;
         DeserializationError error = deserializeJson(doc, (char*)data);
-        
+
         if (error) {
             request->send(400, "application/json", "{\"success\":false}");
             return;
         }
-        
+
         File configFile = SPIFFS.open("/config.json", FILE_WRITE);
         if (configFile) {
             serializeJson(doc, configFile);
@@ -1171,25 +2364,25 @@ void WebServerManager::setupRoutes()
     server->on("/api/export", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<2048> doc;
-        
+
         JsonObject system = doc.createNestedObject("system");
         system["device"] = DEVICE_NAME;
         system["version"] = FIRMWARE_VERSION;
         system["uptime"] = millis();
         system["freeHeap"] = ESP.getFreeHeap();
-        
+
         JsonObject sensors = doc.createNestedObject("sensors");
         sensorManager.getAllSensorData(sensors);
-        
+
         JsonObject espnow = doc.createNestedObject("espnow");
         uint32_t sent, received, failed;
         espnowComm.getStatistics(sent, received, failed);
         espnow["sent"] = sent;
         espnow["received"] = received;
         espnow["failed"] = failed;
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -1216,37 +2409,37 @@ void WebServerManager::setupRoutes()
     server->on("/api/alert", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<256> doc;
         deserializeJson(doc, (char*)data);
-        
+
         const char* message = doc["message"] | "Alert triggered";
-        
+
         actuatorManager.triggerAlert();
-        
+
         StaticJsonDocument<256> alert;
         alert["type"] = "alert";
         alert["message"] = message;
         char buffer[256];
         serializeJson(alert, buffer);
         webServer.ws->textAll(buffer);
-        
+
         espnowComm.sendToAllPeers(MSG_ALERT, message);
-        
+
         request->send(200, "application/json", "{\"success\":true}"); });
 
     server->on("/api/files", HTTP_GET, [](AsyncWebServerRequest *request)
                {
         webServer.totalRequests++;
-        
+
         StaticJsonDocument<2048> doc;
         doc["spiffs"] = webServer.spiffsAvailable;
         JsonArray files = doc.createNestedArray("files");
-        
+
         if (webServer.spiffsAvailable) {
             File root = SPIFFS.open("/");
             File file = root.openNextFile();
-            
+
             while(file){
                 JsonObject fileObj = files.createNestedObject();
                 fileObj["name"] = file.path();
@@ -1254,7 +2447,7 @@ void WebServerManager::setupRoutes()
                 file = root.openNextFile();
             }
         }
-        
+
         String response;
         serializeJson(doc, response);
         request->send(200, "application/json", response); });
@@ -1267,524 +2460,33 @@ void WebServerManager::setupRoutes()
         server->on("/", HTTP_GET, [](AsyncWebServerRequest *request)
                    {
             webServer.totalRequests++;
-            
-            String html = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-    <title>ESP32 IoT Dashboard</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
 
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+            String html = "<!DOCTYPE html><html><head><title>ESP32 IoT Dashboard</title>";
+            html += "<style>body {font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5;}";
+            html += "h1 {color: #333;} ul {list-style-type: none; padding: 0;}";
+            html += "li {padding: 8px; margin: 5px 0; background: white; border-radius: 4px;}</style></head><body>";
+            html += "<h1>🗂️ SPIFFS Files Debug</h1>";
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+            if (webServer.spiffsAvailable) {
+                html += "<p><strong>SPIFFS Status:</strong> ✓ Available</p>";
+                html += "<h2>All Files:</h2><ul>";
+                File root = SPIFFS.open("/");
+                File file = root.openNextFile();
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .status-item {
-            text-align: center;
-            flex: 1;
-        }
-
-        .status-label {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .status-value {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-
-        .sensor-value {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #667eea;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .sensor-unit {
-            font-size: 1rem;
-            color: #666;
-        }
-
-        .sensor-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .sensor-item {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .sensor-name {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .control-panel {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 120px;
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #5a67d8;
-        }
-
-        .btn-secondary {
-            background: #48bb78;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #38a169;
-        }
-
-        .btn-danger {
-            background: #f56565;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #e53e3e;
-        }
-
-        .btn-warning {
-            background: #ed8936;
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background: #dd6b20;
-        }
-
-        .log {
-            height: 200px;
-            overflow-y: auto;
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        .log-entry {
-            padding: 5px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .log-time {
-            color: #666;
-        }
-
-        .log-message {
-            color: #333;
-        }
-
-        .ws-status {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
-
-        .ws-connected {
-            background: #c6f6d5;
-            color: #22543d;
-        }
-
-        .ws-disconnected {
-            background: #fed7d7;
-            color: #742a2a;
-        }
-
-        @media (max-width: 768px) {
-            .status-bar {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .sensor-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🌡️ ESP32 IoT Dashboard</h1>
-            <p>Real-time sensor monitoring and control</p>
-            <p><em>Note: Using fallback interface. Upload files to SPIFFS for enhanced UI.</em></p>
-        </div>
-
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-label">Device</div>
-                <div class="status-value" id="deviceName">ESP32</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">IP Address</div>
-                <div class="status-value" id="ipAddress">%IP%</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Uptime</div>
-                <div class="status-value" id="uptime">0s</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Heap Memory</div>
-                <div class="status-value" id="heap">0 KB</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">WebSocket</div>
-                <div class="status-value">
-                    <span id="wsStatus" class="ws-status ws-disconnected">Disconnected</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card-grid">
-            <div class="card">
-                <h2>📊 Sensor Data</h2>
-                <div class="sensor-value" id="tempValue">--.-</div>
-                <div class="sensor-unit">Temperature (°C)</div>
-
-                <div class="sensor-grid">
-                    <div class="sensor-item">
-                        <div class="sensor-name">Humidity</div>
-                        <div class="sensor-value" id="humidityValue">--%</div>
-                    </div>
-                    <div class="sensor-item">
-                        <div class="sensor-name">Pressure</div>
-                        <div class="sensor-value" id="pressureValue">---- hPa</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <button class="btn btn-primary" onclick="getSensorData()">
-                        🔄 Refresh Sensors
-                    </button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>⚡ Control Panel</h2>
-                <div class="control-panel">
-                    <button class="btn btn-secondary" onclick="controlActuator('led', 1)">
-                        💡 LED ON
-                    </button>
-                    <button class="btn btn-danger" onclick="controlActuator('led', 0)">
-                        LED OFF
-                    </button>
-                    <button class="btn btn-warning" onclick="restartDevice()">
-                        🔄 Restart
-                    </button>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <h3>System Log</h3>
-                    <div class="log" id="systemLog">
-                        <div class="log-entry">
-                            <span class="log-time">[00:00:00]</span>
-                            <span class="log-message">System started</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>🔧 System Information</h2>
-            <div class="sensor-grid">
-                <div class="sensor-item">
-                    <div class="sensor-name">Firmware Version</div>
-                    <div class="sensor-value">%VERSION%</div>
-                </div>
-                <div class="sensor-item">
-                    <div class="sensor-name">WiFi RSSI</div>
-                    <div class="sensor-value" id="rssiValue">-- dBm</div>
-                </div>
-                <div class="sensor-item">
-                    <div class="sensor-name">Connected Clients</div>
-                    <div class="sensor-value" id="clientCount">0</div>
-                </div>
-                <div class="sensor-item">
-                    <div class="sensor-name">Filesystem</div>
-                    <div class="sensor-value" id="fsStatus">Not Available</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const ip = "%IP%";
-        let ws = null;
-        let logCount = 0;
-        const maxLogs = 20;
-
-        function addLog(message) {
-            const now = new Date();
-            const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
-            const logDiv = document.getElementById('systemLog');
-
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            logEntry.innerHTML = `<span class="log-time">${time}</span> <span class="log-message">${message}</span>`;
-
-            logDiv.prepend(logEntry);
-
-            // Limit number of logs
-            if (logDiv.children.length > maxLogs) {
-                logDiv.removeChild(logDiv.lastChild);
-            }
-
-            logCount++;
-        }
-
-        function connectWS() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                addLog('WebSocket already connected');
-                return;
-            }
-
-            addLog('Connecting to WebSocket...');
-            ws = new WebSocket(`ws://${ip}/ws`);
-
-            ws.onopen = () => {
-                addLog('✓ WebSocket connected');
-                document.getElementById('wsStatus').textContent = 'Connected';
-                document.getElementById('wsStatus').className = 'ws-status ws-connected';
-                updateStatus();
-
-                // Request initial data
-                setTimeout(() => {
-                    getStatus();
-                    getSensorData();
-                }, 500);
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-
-                    if (data.type === 'status') {
-                        updateStatusDisplay(data);
-                    } else if (data.type === 'sensor') {
-                        updateSensorDisplay(data);
-                    } else if (data.type === 'connected') {
-                        addLog(`Connected with ID: ${data.clientId}`);
-                    } else if (data.type === 'actuatorSet') {
-                        addLog(`Actuator ${data.actuator} set to ${data.value}`);
-                    } else if (data.type === 'alert') {
-                        addLog(`⚠ Alert: ${JSON.stringify(data)}`);
-                    }
-                } catch (e) {
-                    console.error('Error parsing WebSocket message:', e);
+                int fileCount = 0;
+                while(file){
+                    String filePath = String(file.path());
+                    html += "<li>📄 <strong>" + filePath + "</strong> (" + String(file.size()) + " bytes)";
+                    html += " <a href='" + filePath + "' target='_blank'>Open</a></li>";
+                    file = root.openNextFile();
+                    fileCount++;
                 }
-            };
-
-            ws.onclose = () => {
-                addLog('✗ WebSocket disconnected');
-                document.getElementById('wsStatus').textContent = 'Disconnected';
-                document.getElementById('wsStatus').className = 'ws-status ws-disconnected';
-            };
-
-            ws.onerror = (error) => {
-                addLog('❌ WebSocket error occurred');
-                console.error('WebSocket error:', error);
-            };
-        }
-
-        function updateStatusDisplay(data) {
-            document.getElementById('uptime').textContent = Math.floor(data.uptime / 1000) + 's';
-            document.getElementById('heap').textContent = Math.floor(data.freeHeap / 1024) + ' KB';
-            document.getElementById('rssiValue').textContent = data.wifiRSSI + ' dBm';
-            document.getElementById('clientCount').textContent = data.clients || 0;
-            document.getElementById('fsStatus').textContent = data.spiffs ? 'Available' : 'Not Available';
-            document.getElementById('deviceName').textContent = data.device || 'ESP32';
-        }
-
-        function updateSensorDisplay(data) {
-            if (data.temperature !== undefined) {
-                document.getElementById('tempValue').textContent = data.temperature.toFixed(1);
-            }
-            if (data.humidity !== undefined) {
-                document.getElementById('humidityValue').textContent = data.humidity.toFixed(1) + '%';
-            }
-            if (data.pressure !== undefined) {
-                document.getElementById('pressureValue').textContent = data.pressure.toFixed(1) + ' hPa';
-            }
-            addLog('Sensor data updated');
-        }
-
-        function updateStatus() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({type: 'getStatus'}));
-                // Auto-refresh every 10 seconds
-                setTimeout(updateStatus, 10000);
-            }
-        }
-
-        function getStatus() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({type: 'getStatus'}));
+                html += "</ul><p>Total files: " + String(fileCount) + "</p>";
             } else {
-                alert('Please connect WebSocket first');
+                html += "<p><strong>SPIFFS Status:</strong> ✗ Not Available</p>";
             }
-        }
 
-        function getSensorData() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({type: 'getSensorData'}));
-                addLog('Requesting sensor data...');
-            } else {
-                alert('Please connect WebSocket first');
-            }
-        }
-
-        function controlActuator(actuator, value) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'setActuator',
-                    actuator: actuator,
-                    value: value
-                }));
-                addLog(`Sending control: ${actuator} = ${value}`);
-            } else {
-                alert('Please connect WebSocket first');
-            }
-        }
-
-        function restartDevice() {
-            if (confirm('Are you sure you want to restart the device?')) {
-                fetch('/api/restart', { method: 'POST' })
-                    .then(() => {
-                        addLog('Device restart initiated...');
-                    })
-                    .catch(err => {
-                        addLog('Error restarting device');
-                        console.error(err);
-                    });
-            }
-        }
-
-        // Auto-connect on page load
-        window.addEventListener('load', () => {
-            connectWS();
-
-            // Add initial logs
-            addLog('Dashboard initialized');
-            addLog('Device IP: ' + ip);
-            addLog('Firmware: %VERSION%');
-
-            // Update IP display
-            document.getElementById('ipAddress').textContent = ip;
-        });
-
-        // Handle page visibility change
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && (!ws || ws.readyState !== WebSocket.OPEN)) {
-                connectWS();
-            }
-        });
-    </script>
-</body>
-</html>
-)rawliteral";
-
-            // Replace placeholders
-            html.replace("%VERSION%", FIRMWARE_VERSION);
-            html.replace("%IP%", WiFi.localIP().toString());
-
+            html += "<hr><p><a href='/'>← Back to Dashboard</a></p></body></html>";
             request->send(200, "text/html", html); });
     }
 

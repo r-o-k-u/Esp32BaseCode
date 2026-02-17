@@ -1,6 +1,6 @@
 /**
  * @file DHTSensor.cpp
- * @brief DHT22 sensor implementation
+ * @brief DHT11 sensor implementation
  */
 
 #include "DHTSensor.h"
