@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ESP32 Dual Communication System Control Panel">
+  <title>ESP32 Control Panel - Dashboard</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Critical CSS for initial load */
+    :root {
+      --primary: #00FFFF;
+      --primary-dark: #00CCCC;
+      --primary-light: #66FFFF;
+      --primary-glow: rgba(0, 255, 255, 0.4);
+      --secondary: #FF00FF;
+      --success: #00FF88;
+      --warning: #FFAA00;
+      --danger: #FF0055;
+      --info: #00AAFF;
+      --bg-primary: #0D0D1A;
+      --bg-secondary: #1A1A2E;
+      --bg-tertiary: #16213E;
+      --glass-bg: rgba(26, 26, 46, 0.7);
+      --glass-border: rgba(0, 255, 255, 0.2);
+      --text-primary: #FFFFFF;
+      --text-secondary: #B8C5D6;
+      --text-muted: #7A8AA3;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: linear-gradient(135deg, #0D0D1A 0%, #1A1A2E 50%, #16213E 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    #app {
+      min-height: 100vh;
+    }
+    .loading-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg-primary);
+    }
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="loading-screen">
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
